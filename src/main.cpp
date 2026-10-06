@@ -41,6 +41,7 @@ void usage(const char* argv0) {
               << "                      next to the executable or in its parent folder)\n"
               << "  --disk1/--disk2 F   insert a disk image (.dsk/.do/.po/.nib) in drive 1/2;\n"
               << "                      needs disk2.rom (Disk II boot ROM), looked up like the ROM\n"
+              << "  --green             start with a green-phosphor monitor (toggle with Cmd+G)\n"
               << "  --headless FRAMES   run without a window and print the text screen\n"
               << "  --type TEXT         type TEXT one second after boot (newlines become RETURN)\n"
               << "  --type-delay FRAMES frames to wait before typing (default 60; 60 per second)\n"
@@ -56,6 +57,7 @@ int main(int argc, char* argv[]) {
     std::string diskPaths[2];
     int headlessFrames = -1;
     int typeDelayFrames = 60;
+    bool green = false;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -67,6 +69,8 @@ int main(int argc, char* argv[]) {
             diskPaths[arg == "--disk1" ? 0 : 1] = argv[++i];
         } else if (arg == "--type-delay" && i + 1 < argc) {
             typeDelayFrames = std::atoi(argv[++i]);
+        } else if (arg == "--green") {
+            green = true;
         } else if (arg == "--screenshot" && i + 1 < argc) {
             screenshotPath = argv[++i];
         } else if (arg == "-h" || arg == "--help") {
@@ -88,6 +92,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "Failed to initialize emulator." << std::endl;
         return 1;
     }
+    emulator.setMonochrome(green);
     for (int drive = 0; drive < 2; drive++) {
         if (diskPaths[drive].empty()) continue;
         std::string error = emulator.insertDisk(drive, diskPaths[drive]);

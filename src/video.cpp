@@ -3,6 +3,7 @@
 #include "font.h"
 #include "memory.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace apple2e {
@@ -22,6 +23,7 @@ constexpr uint32_t kViolet = kPalette[3];
 constexpr uint32_t kGreen = kPalette[12];
 constexpr uint32_t kBlue = kPalette[6];
 constexpr uint32_t kOrange = kPalette[9];
+constexpr uint32_t kGreenPhosphor = 0xFF33FF33;
 
 // Text rows (and lo-res rows) are interleaved in groups of eight
 uint16_t textRowOffset(int row) {
@@ -96,9 +98,14 @@ void VideoController::draw(SDL_Renderer* renderer, const SDL_Rect& dst) {
     SDL_RenderCopy(renderer, m_texture, nullptr, &dst);
 }
 
+uint32_t VideoController::foreground() const {
+    return m_monochrome ? kGreenPhosphor : kWhite;
+}
+
 void VideoController::drawGlyph(int x, int y, int dotWidth, uint8_t ch) {
     DecodedChar dc = decodeChar(ch, m_sw.altcharset);
     bool inverse = dc.inverse || (dc.flashing && m_flashInverse);
+    uint32_t fg = foreground();
 
     for (int row = 0; row < 8; row++) {
         uint8_t dots = (row < 7 && !dc.mouseText) ? kFont[dc.ascii - 0x20][row] << 1 : 0;
@@ -106,7 +113,7 @@ void VideoController::drawGlyph(int x, int y, int dotWidth, uint8_t ch) {
 
         uint32_t* out = line(y + row) + x;
         for (int d = 0; d < 7; d++) {
-            uint32_t color = (dots & (0x40 >> d)) ? kWhite : kBlack;
+            uint32_t color = (dots & (0x40 >> d)) ? fg : kBlack;
             for (int k = 0; k < dotWidth; k++) *out++ = color;
         }
     }
@@ -132,13 +139,23 @@ void VideoController::drawLoresRow(int row, uint16_t base) {
     uint16_t addr = base + textRowOffset(row);
     const uint8_t* main = m_memory.mainRam();
 
+    uint32_t fg = foreground();
     for (int col = 0; col < 40; col++) {
         uint8_t byte = main[addr + col];
         for (int y = 0; y < 8; y++) {
             // Low nibble is the upper block, high nibble the lower one
-            uint32_t color = kPalette[y < 4 ? (byte & 0x0F) : (byte >> 4)];
+            uint8_t nibble = y < 4 ? (byte & 0x0F) : (byte >> 4);
             uint32_t* out = line(row * 8 + y) + col * 14;
-            for (int k = 0; k < 14; k++) *out++ = color;
+            for (int k = 0; k < 14; k++) {
+                if (m_monochrome) {
+                    // The colour's 4-bit pattern is shifted out repeatedly
+                    // at four times the colour-burst rate
+                    int x = col * 14 + k;
+                    *out++ = (nibble >> (x & 3)) & 1 ? fg : kBlack;
+                } else {
+                    *out++ = kPalette[nibble];
+                }
+            }
         }
     }
 }
@@ -156,6 +173,20 @@ void VideoController::drawHiresLine(int y, uint16_t base) {
             on[col * 7 + bit] = byte & (1 << bit);
             group2[col * 7 + bit] = byte & 0x80;
         }
+    }
+
+    if (m_monochrome) {
+        // Each dot is two 560-resolution pixels; bit 7 delays the byte's dots by half a dot
+        uint32_t fg = foreground();
+        uint32_t* out = line(y);
+        std::fill(out, out + kWidth, kBlack);
+        for (int x = 0; x < 280; x++) {
+            if (!on[x]) continue;
+            int px = x * 2 + (group2[x] ? 1 : 0);
+            out[px] = fg;
+            if (px + 1 < kWidth) out[px + 1] = fg;
+        }
+        return;
     }
 
     auto artifact = [&](int x) {

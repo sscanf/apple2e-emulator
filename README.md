@@ -7,6 +7,7 @@ Enhanced Apple IIe emulator in C++20 with SDL2.
 - 40/80-column text, lo-res, hi-res (NTSC artifact colour), mixed mode
 - Keyboard, Open/Solid Apple buttons, 1-bit speaker
 - Paddles/joystick via the mouse or a game controller
+- Colour or green-phosphor monitor (switch in the side panel, Cmd+G or `--green`)
 - Disk II controller in slot 6 with two drives (.dsk/.do/.po/.nib, read and write),
   shown in a side panel; boots DOS 3.3 and ProDOS
 
@@ -38,6 +39,7 @@ also works from inside `build/`.
 | Shift+F12 | Power cycle |
 | Cmd+1 / Cmd+2 | Insert a disk in drive 1 / 2 |
 | Cmd+D | Drive sounds on/off |
+| Cmd+G | Colour / green monitor |
 | Cmd+V | Paste text |
 | Cmd+Q | Quit |
 | Caps Lock | Toggle Apple CAPS LOCK (on by default) |

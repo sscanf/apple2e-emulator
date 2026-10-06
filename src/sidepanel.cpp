@@ -1,7 +1,8 @@
-#include "diskpanel.h"
+#include "sidepanel.h"
 
 #include "disk2.h"
 #include "font.h"
+#include "video.h"
 
 #include <cstdio>
 #include <filesystem>
@@ -33,6 +34,9 @@ constexpr SDL_Color kText = {0xD0, 0xD0, 0xD0, 0xFF};
 constexpr SDL_Color kDimText = {0x78, 0x78, 0x78, 0xFF};
 constexpr SDL_Color kWarnText = {0xE8, 0xC0, 0x40, 0xFF};
 constexpr SDL_Color kErrorText = {0xFF, 0x60, 0x50, 0xFF};
+constexpr SDL_Color kGreenText = {0x33, 0xFF, 0x33, 0xFF};
+constexpr SDL_Color kSwitchTrack = {0x3A, 0x3A, 0x3C, 0xFF};
+constexpr SDL_Color kSwitchKnob = {0xD0, 0xD0, 0xD0, 0xFF};
 
 void fill(SDL_Renderer* r, const SDL_Rect& rect, SDL_Color c) {
     SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
@@ -119,15 +123,19 @@ std::string openFileDialog(const std::string& prompt, const std::string& directo
 
 } // namespace
 
-DiskPanel::DiskPanel(Disk2Controller* controller, int x, int height)
-    : m_controller(controller), m_x(x), m_height(height) {}
+SidePanel::SidePanel(Disk2Controller* controller, VideoController& video, int x, int height)
+    : m_controller(controller), m_video(video), m_x(x), m_height(height) {}
 
-SDL_Rect DiskPanel::driveRect(int drive) const {
+SDL_Rect SidePanel::monitorSwitchRect() const {
+    return {m_x + 8, m_height - 86, kBodyWidth, 14};
+}
+
+SDL_Rect SidePanel::driveRect(int drive) const {
     // Body plus the file name lines underneath
     return {m_x + 8, kDriveTop + drive * kDriveSpacing, kBodyWidth, kBodyHeight + 30};
 }
 
-int DiskPanel::driveAt(int x, int y) const {
+int SidePanel::driveAt(int x, int y) const {
     SDL_Point p = {x, y};
     for (int d = 0; d < Disk2Controller::kDrives; d++) {
         SDL_Rect r = driveRect(d);
@@ -136,16 +144,16 @@ int DiskPanel::driveAt(int x, int y) const {
     return -1;
 }
 
-void DiskPanel::insert(int drive, const std::string& path) {
+void SidePanel::insert(int drive, const std::string& path) {
     m_message = m_controller->insert(drive, path);
     m_lastDirectory = std::filesystem::path(path).parent_path().string();
 }
 
-void DiskPanel::eject(int drive) {
+void SidePanel::eject(int drive) {
     m_message = m_controller->eject(drive);
 }
 
-void DiskPanel::chooseDisk(int drive) {
+void SidePanel::chooseDisk(int drive) {
     if (!m_controller || m_dialog) return;  // one dialog at a time
 
     // The thread only touches the shared result, so it may outlive the panel
@@ -159,13 +167,22 @@ void DiskPanel::chooseDisk(int drive) {
     }).detach();
 }
 
-void DiskPanel::update() {
+void SidePanel::update() {
     if (!m_dialog || !m_dialog->done) return;
     if (!m_dialog->path.empty()) insert(m_dialogDrive, m_dialog->path);
     m_dialog.reset();
 }
 
-bool DiskPanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
+bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
+    if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
+        SDL_Point p = {event.button.x, event.button.y};
+        SDL_Rect sw = monitorSwitchRect();
+        if (SDL_PointInRect(&p, &sw)) {
+            m_video.setMonochrome(!m_video.monochrome());
+            return true;
+        }
+    }
+
     if (!m_controller) return false;
 
     if (event.type == SDL_MOUSEBUTTONDOWN) {
@@ -193,7 +210,7 @@ bool DiskPanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
     return false;
 }
 
-void DiskPanel::drawDrive(SDL_Renderer* r, int drive) const {
+void SidePanel::drawDrive(SDL_Renderer* r, int drive) const {
     const DiskImage& disk = m_controller->disk(drive);
     SDL_Rect area = driveRect(drive);
     int x = area.x;
@@ -242,8 +259,24 @@ void DiskPanel::drawDrive(SDL_Renderer* r, int drive) const {
     if (disk.writeProtected()) drawText(r, x, textY, "write-protected", kWarnText);
 }
 
-void DiskPanel::draw(SDL_Renderer* r) const {
+// Two-position slide switch: COLOR [==o] GREEN
+void SidePanel::drawMonitorSwitch(SDL_Renderer* r) const {
+    SDL_Rect area = monitorSwitchRect();
+    bool green = m_video.monochrome();
+    int x = area.x;
+    int y = area.y;
+
+    drawText(r, x, y + 4, "COLOR", green ? kDimText : kText);
+    fill(r, {x + 36, y + 2, 28, 11}, kBodyEdge);
+    fill(r, {x + 37, y + 3, 26, 9}, kSwitchTrack);
+    fill(r, {green ? x + 51 : x + 37, y + 3, 12, 9}, green ? kGreenText : kSwitchKnob);
+    drawText(r, x + 70, y + 4, "GREEN", green ? kGreenText : kDimText);
+    drawText(r, x + 112, y + 4, "Cmd+G", kDimText);
+}
+
+void SidePanel::draw(SDL_Renderer* r) const {
     fill(r, {m_x, 0, kWidth, m_height}, kPanelBg);
+    drawMonitorSwitch(r);
 
     if (!m_controller) {
         drawText(r, m_x + 8, 16, "No disk2.rom found:", kWarnText);
