@@ -6,6 +6,7 @@ Enhanced Apple IIe emulator in C++20 with SDL2.
 - 64 KB main + 64 KB auxiliary RAM, language card, IIe MMU soft switches
 - 40/80-column text, lo-res, hi-res (NTSC artifact colour), mixed mode
 - Keyboard, Open/Solid Apple buttons, 1-bit speaker
+- Paddles/joystick via the mouse or a game controller
 - Disk II controller in slot 6 with two drives (.dsk/.do/.po/.nib, read and write),
   shown in a side panel; boots DOS 3.3 and ProDOS
 
@@ -40,7 +41,17 @@ also works from inside `build/`.
 | Cmd+V | Paste text |
 | Cmd+Q | Quit |
 | Caps Lock | Toggle Apple CAPS LOCK (on by default) |
-| Left / Right Alt | Open Apple / Solid Apple |
+| Left / Right Alt | Open Apple / Solid Apple (buttons 0 / 1) |
+
+### Paddles and joystick
+
+- **Mouse** over the Apple screen: X is paddle 0, Y is paddle 1; left and
+  right click are buttons 0 and 1.
+- **Game controller** (Xbox, PlayStation, ...): left stick is paddles 0/1,
+  right stick paddles 2/3; A, B and X are buttons 0, 1 and 2.
+
+Whichever moved last sets the position. Try it in BASIC with
+`PRINT PDL(0), PDL(1)`.
 
 ### Disks
 

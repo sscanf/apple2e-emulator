@@ -14,7 +14,7 @@ constexpr int kLogicalWidth = kScreenWidth + DiskPanel::kWidth;
 
 Apple2e::Apple2e()
     : m_memory(m_switches),
-      m_io(m_switches, m_keyboard, m_audio, m_cycles),
+      m_io(m_switches, m_keyboard, m_audio, m_gameIO, m_cycles),
       m_cpu(m_memory),
       m_video(m_memory, m_switches),
       m_disk2(m_cycles) {
@@ -48,7 +48,7 @@ bool Apple2e::init(const std::string& romPath, const std::string& diskRomPath, b
     m_diskPanel = std::make_unique<DiskPanel>(m_hasDisk2 ? &m_disk2 : nullptr, kScreenWidth, kScreenHeight);
 
     if (!headless) {
-        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
             std::cerr << "SDL init failed: " << SDL_GetError() << std::endl;
             return false;
         }
@@ -184,6 +184,7 @@ void Apple2e::handleEvent(const SDL_Event& event, bool& running) {
         }
     }
 
+    m_gameIO.handleEvent(event, {0, 0, kScreenWidth, kScreenHeight});
     if (m_diskPanel->handleEvent(event, m_renderer)) return;
     m_keyboard.handleEvent(event);
 }

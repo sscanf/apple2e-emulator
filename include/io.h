@@ -5,6 +5,7 @@
 namespace apple2e {
 
 class Card;
+class GameIO;
 struct SoftSwitches;
 class KeyboardController;
 class AudioController;
@@ -20,7 +21,7 @@ constexpr double kCpuClockHz = 1020484.0;
 class IOController {
 public:
     IOController(SoftSwitches& switches, KeyboardController& keyboard,
-                 AudioController& audio, const uint64_t& cycles);
+                 AudioController& audio, GameIO& gameIO, const uint64_t& cycles);
 
     uint8_t read(uint16_t addr);
     void write(uint16_t addr, uint8_t val);
@@ -36,6 +37,7 @@ private:
     SoftSwitches& m_sw;
     KeyboardController& m_keyboard;
     AudioController& m_audio;
+    GameIO& m_gameIO;
     const uint64_t& m_cycles;
     Card* m_cards[8] = {};
 };

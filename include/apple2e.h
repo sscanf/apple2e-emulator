@@ -5,6 +5,7 @@
 #include "disk2.h"
 #include "diskpanel.h"
 #include "drivesounds.h"
+#include "gameio.h"
 #include "io.h"
 #include "keyboard.h"
 #include "memory.h"
@@ -60,6 +61,7 @@ private:
     SoftSwitches m_switches;
     KeyboardController m_keyboard;
     AudioController m_audio;
+    GameIO m_gameIO;
     Memory m_memory;
     IOController m_io;
     CPU m_cpu;
