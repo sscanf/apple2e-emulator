@@ -9,7 +9,7 @@ namespace {
 constexpr int kDiskSlot = 6;
 constexpr int kScreenWidth = VideoController::kWidth;
 constexpr int kScreenHeight = VideoController::kHeight * 2;  // scanlines doubled for 4:3
-constexpr int kLogicalWidth = kScreenWidth + DiskPanel::kWidth;
+constexpr int kLogicalWidth = kScreenWidth + SidePanel::kWidth;
 }
 
 Apple2e::Apple2e()
@@ -45,7 +45,8 @@ bool Apple2e::init(const std::string& romPath, const std::string& diskRomPath, b
         std::cerr << "No Disk II ROM (disk2.rom): running without disk drives" << std::endl;
     }
 
-    m_diskPanel = std::make_unique<DiskPanel>(m_hasDisk2 ? &m_disk2 : nullptr, kScreenWidth, kScreenHeight);
+    m_sidePanel = std::make_unique<SidePanel>(m_hasDisk2 ? &m_disk2 : nullptr, m_video,
+                                              kScreenWidth, kScreenHeight);
 
     if (!headless) {
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
@@ -101,7 +102,7 @@ bool Apple2e::saveScreenshot(const std::string& path) const {
 
     m_video.copyToSurface(surface);
     if (SDL_Renderer* renderer = SDL_CreateSoftwareRenderer(surface)) {
-        m_diskPanel->draw(renderer);
+        m_sidePanel->draw(renderer);
         SDL_RenderPresent(renderer);
         SDL_DestroyRenderer(renderer);
     }
@@ -174,24 +175,28 @@ void Apple2e::handleEvent(const SDL_Event& event, bool& running) {
             running = false;
             return;
         }
+        if ((mod & KMOD_GUI) && key == SDLK_g) {
+            m_video.setMonochrome(!m_video.monochrome());
+            return;
+        }
         if ((mod & KMOD_GUI) && key == SDLK_d) {
             m_driveSounds.setEnabled(!m_driveSounds.enabled());
             return;
         }
         if ((mod & KMOD_GUI) && (key == SDLK_1 || key == SDLK_2)) {
-            m_diskPanel->chooseDisk(key == SDLK_1 ? 0 : 1);
+            m_sidePanel->chooseDisk(key == SDLK_1 ? 0 : 1);
             return;
         }
     }
 
     m_gameIO.handleEvent(event, {0, 0, kScreenWidth, kScreenHeight});
-    if (m_diskPanel->handleEvent(event, m_renderer)) return;
+    if (m_sidePanel->handleEvent(event, m_renderer)) return;
     m_keyboard.handleEvent(event);
 }
 
 void Apple2e::run() {
     std::cout << "F12: RESET   Shift+F12: reboot   Cmd+1/Cmd+2: insert disk   Cmd+D: drive sounds on/off\n"
-                 "Cmd+V: paste   Cmd+Q: quit\n";
+                 "Cmd+G: colour/green monitor   Cmd+V: paste   Cmd+Q: quit\n";
 
     const double counterHz = static_cast<double>(SDL_GetPerformanceFrequency());
     const double frameSeconds = kCyclesPerFrame / kCpuClockHz;
@@ -204,13 +209,13 @@ void Apple2e::run() {
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) handleEvent(event, running);
-        m_diskPanel->update();
+        m_sidePanel->update();
 
         runFrame();
         SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
         SDL_RenderClear(m_renderer);
         m_video.draw(m_renderer, {0, 0, kScreenWidth, kScreenHeight});
-        m_diskPanel->draw(m_renderer);
+        m_sidePanel->draw(m_renderer);
         SDL_RenderPresent(m_renderer);
 
         // Pace to the real machine's ~59.92 Hz frame rate

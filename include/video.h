@@ -12,7 +12,9 @@ class Memory;
 struct SoftSwitches;
 
 // Generates the Apple IIe display from video memory and the IOU switches:
-// 40/80-column text, lo-res and hi-res (with NTSC artifact colour), mixed mode
+// 40/80-column text, lo-res and hi-res, mixed mode. On a colour monitor
+// hi-res shows NTSC artifact colour; on a monochrome one every dot is visible
+// and lo-res colours appear as dot patterns, as on the real hardware.
 class VideoController {
 public:
     static constexpr int kWidth = 560;   // 80 columns x 7 dots
@@ -22,6 +24,10 @@ public:
     ~VideoController();
 
     bool init(SDL_Renderer* renderer);
+
+    // Monochrome (green phosphor) monitor instead of a colour one
+    bool monochrome() const { return m_monochrome; }
+    void setMonochrome(bool on) { m_monochrome = on; }
 
     // Draw the current frame into the framebuffer (advances flash timing)
     void renderFrame();
@@ -40,6 +46,7 @@ private:
     void drawLoresRow(int row, uint16_t base);
     void drawHiresLine(int y, uint16_t base);
     void drawGlyph(int x, int y, int dotWidth, uint8_t ch);
+    uint32_t foreground() const;
 
     uint32_t* line(int y) { return &m_framebuffer[y * kWidth]; }
 
@@ -50,6 +57,7 @@ private:
     SDL_Texture* m_texture = nullptr;
     uint32_t m_frameCount = 0;
     bool m_flashInverse = false;
+    bool m_monochrome = false;
 };
 
 } // namespace apple2e

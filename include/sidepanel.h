@@ -9,15 +9,17 @@
 namespace apple2e {
 
 class Disk2Controller;
+class VideoController;
 
-// Side panel showing the two Disk II drives: click a drive to insert a disk,
-// right-click to eject, or drop disk images onto it
-class DiskPanel {
+// Side panel next to the screen: the two Disk II drives (click a drive to
+// insert a disk, right-click to eject, or drop disk images onto it) and the
+// colour / green monitor switch
+class SidePanel {
 public:
     static constexpr int kWidth = 160;
 
     // `controller` may be null when no Disk II ROM is available
-    DiskPanel(Disk2Controller* controller, int x, int height);
+    SidePanel(Disk2Controller* controller, VideoController& video, int x, int height);
 
     void draw(SDL_Renderer* renderer) const;
 
@@ -37,6 +39,8 @@ private:
     void insert(int drive, const std::string& path);
     void eject(int drive);
     void drawDrive(SDL_Renderer* renderer, int drive) const;
+    SDL_Rect monitorSwitchRect() const;
+    void drawMonitorSwitch(SDL_Renderer* renderer) const;
 
     // Result of a file dialog running in the background
     struct DialogResult {
@@ -45,6 +49,7 @@ private:
     };
 
     Disk2Controller* m_controller;
+    VideoController& m_video;
     std::shared_ptr<DialogResult> m_dialog;  // non-null while a dialog is open
     int m_dialogDrive = 0;
     int m_x;

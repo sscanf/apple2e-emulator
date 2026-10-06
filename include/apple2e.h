@@ -3,7 +3,7 @@
 #include "audio.h"
 #include "cpu.h"
 #include "disk2.h"
-#include "diskpanel.h"
+#include "sidepanel.h"
 #include "drivesounds.h"
 #include "gameio.h"
 #include "io.h"
@@ -27,6 +27,9 @@ public:
     // Load the ROMs and, unless headless, open the window and audio device.
     // Without a Disk II ROM the machine runs with no disk controller.
     bool init(const std::string& romPath, const std::string& diskRomPath, bool headless = false);
+
+    // Colour or green-phosphor monitor
+    void setMonochrome(bool on) { m_video.setMonochrome(on); }
 
     // Load Disk II mechanical sound samples (motor, head steps) from a folder
     void loadDriveSounds(const std::string& directory);
@@ -68,7 +71,7 @@ private:
     VideoController m_video;
     Disk2Controller m_disk2;
     bool m_hasDisk2 = false;
-    std::unique_ptr<DiskPanel> m_diskPanel;
+    std::unique_ptr<SidePanel> m_sidePanel;
     DriveSounds m_driveSounds;
     bool m_driveSoundsLoaded = false;
 
