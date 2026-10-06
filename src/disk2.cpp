@@ -269,9 +269,14 @@ void Disk2Controller::stepPhase(int phase, bool on) {
 
     Drive& drive = current();
     int diff = (phase - drive.halfTrack) & 3;
-    if (diff == 1) drive.halfTrack++;
-    if (diff == 3) drive.halfTrack--;
-    drive.halfTrack = std::clamp(drive.halfTrack, 0, (DiskImage::kTracks - 1) * 2);
+    int target = drive.halfTrack;
+    if (diff == 1) target++;
+    if (diff == 3) target--;
+    if (target == drive.halfTrack) return;
+
+    int clamped = std::clamp(target, 0, (DiskImage::kTracks - 1) * 2);
+    if (m_onHeadEvent) m_onHeadEvent(clamped == target ? HeadEvent::Step : HeadEvent::Bump, m_cycles);
+    drive.halfTrack = clamped;
 }
 
 // $C0n0-$C0nF: 0-7 phases off/on, 8/9 motor, A/B drive select,

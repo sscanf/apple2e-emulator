@@ -35,6 +35,12 @@ bool Apple2e::init(const std::string& romPath, const std::string& diskRomPath, b
     if (m_hasDisk2) {
         m_memory.setCard(kDiskSlot, &m_disk2);
         m_io.setCard(kDiskSlot, &m_disk2);
+        m_disk2.setHeadEventCallback([this](Disk2Controller::HeadEvent event, uint64_t cycle) {
+            if (!m_driveSoundsLoaded) return;
+            m_driveSounds.trigger(event == Disk2Controller::HeadEvent::Step ? DriveSounds::Event::Step
+                                                                            : DriveSounds::Event::Bump,
+                                  cycle);
+        });
     } else {
         std::cerr << "No Disk II ROM (disk2.rom): running without disk drives" << std::endl;
     }
@@ -73,6 +79,14 @@ bool Apple2e::init(const std::string& romPath, const std::string& diskRomPath, b
 
     reset(true);
     return true;
+}
+
+void Apple2e::loadDriveSounds(const std::string& directory) {
+    if (!m_hasDisk2 || m_audio.sampleRate() == 0) return;  // no drives or no audio device
+    if (m_driveSounds.load(directory, m_audio.sampleRate())) {
+        m_driveSoundsLoaded = true;
+        m_audio.setDriveSounds(&m_driveSounds);
+    }
 }
 
 std::string Apple2e::insertDisk(int drive, const std::string& path) {
@@ -125,6 +139,7 @@ void Apple2e::runFrame() {
         m_cycles += m_cpu.step();
     }
 
+    m_driveSounds.setMotor(m_hasDisk2 && m_disk2.spinning());
     m_audio.endFrame(m_cycles);
     m_video.renderFrame();
 }
@@ -159,6 +174,10 @@ void Apple2e::handleEvent(const SDL_Event& event, bool& running) {
             running = false;
             return;
         }
+        if ((mod & KMOD_GUI) && key == SDLK_d) {
+            m_driveSounds.setEnabled(!m_driveSounds.enabled());
+            return;
+        }
         if ((mod & KMOD_GUI) && (key == SDLK_1 || key == SDLK_2)) {
             m_diskPanel->chooseDisk(key == SDLK_1 ? 0 : 1);
             return;
@@ -170,7 +189,8 @@ void Apple2e::handleEvent(const SDL_Event& event, bool& running) {
 }
 
 void Apple2e::run() {
-    std::cout << "F12: RESET   Shift+F12: reboot   Cmd+1/Cmd+2: insert disk   Cmd+V: paste   Cmd+Q: quit\n";
+    std::cout << "F12: RESET   Shift+F12: reboot   Cmd+1/Cmd+2: insert disk   Cmd+D: drive sounds on/off\n"
+                 "Cmd+V: paste   Cmd+Q: quit\n";
 
     const double counterHz = static_cast<double>(SDL_GetPerformanceFrequency());
     const double frameSeconds = kCyclesPerFrame / kCpuClockHz;

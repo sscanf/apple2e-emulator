@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -68,6 +69,15 @@ public:
     // Drive activity light: motor spinning and drive selected
     bool active(int drive) const { return spinning() && m_selected == drive; }
 
+    // The drive keeps spinning for about a second after the motor is switched
+    // off; DOS relies on this to skip the spin-up wait between operations
+    bool spinning() const;
+
+    // Mechanical events for sound effects: head moved, or pushed against the
+    // track 0 stop. Called with the CPU cycle at which it happened.
+    enum class HeadEvent { Step, Bump };
+    void setHeadEventCallback(std::function<void(HeadEvent, uint64_t)> cb) { m_onHeadEvent = std::move(cb); }
+
 private:
     struct Drive {
         DiskImage disk;
@@ -76,13 +86,11 @@ private:
     };
 
     void stepPhase(int phase, bool on);
-    // The drive keeps spinning for about a second after the motor is switched
-    // off; DOS relies on this to skip the spin-up wait between operations
-    bool spinning() const;
     Drive& current() { return m_drives[m_selected]; }
 
     const uint64_t& m_cycles;
     uint64_t m_motorOffCycle = 0;
+    std::function<void(HeadEvent, uint64_t)> m_onHeadEvent;
 
     std::array<uint8_t, 256> m_rom{};
     std::array<Drive, kDrives> m_drives;
