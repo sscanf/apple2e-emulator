@@ -4,6 +4,7 @@
 #include "cpu.h"
 #include "disk2.h"
 #include "diskpanel.h"
+#include "drivesounds.h"
 #include "io.h"
 #include "keyboard.h"
 #include "memory.h"
@@ -25,6 +26,9 @@ public:
     // Load the ROMs and, unless headless, open the window and audio device.
     // Without a Disk II ROM the machine runs with no disk controller.
     bool init(const std::string& romPath, const std::string& diskRomPath, bool headless = false);
+
+    // Load Disk II mechanical sound samples (motor, head steps) from a folder
+    void loadDriveSounds(const std::string& directory);
 
     // Insert a disk image into drive 0/1; returns an error message on failure
     std::string insertDisk(int drive, const std::string& path);
@@ -63,6 +67,8 @@ private:
     Disk2Controller m_disk2;
     bool m_hasDisk2 = false;
     std::unique_ptr<DiskPanel> m_diskPanel;
+    DriveSounds m_driveSounds;
+    bool m_driveSoundsLoaded = false;
 
     std::string m_delayedText;
     int m_typeDelayFrames = 0;

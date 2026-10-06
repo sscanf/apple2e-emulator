@@ -12,8 +12,11 @@ namespace {
 constexpr const char* kDefaultRom = "apple2e.rom";
 constexpr const char* kDiskRom = "disk2.rom";
 
-// Look for a support file in the current directory, next to the executable,
-// and one level above it (the project root for build/ trees). Empty if absent.
+constexpr const char* kSoundsDir = "sounds";
+
+// Look for a support file or folder in the current directory, next to the
+// executable, and one level above it (the project root for build/ trees).
+// Empty if absent.
 std::string findFile(const std::string& name) {
     namespace fs = std::filesystem;
     std::vector<fs::path> candidates = {name};
@@ -26,7 +29,7 @@ std::string findFile(const std::string& name) {
 
     std::error_code ec;
     for (const auto& path : candidates) {
-        if (fs::is_regular_file(path, ec)) return path.string();
+        if (fs::exists(path, ec)) return path.string();
     }
     return {};
 }
@@ -100,6 +103,8 @@ int main(int argc, char* argv[]) {
             return 1;
         }
     } else {
+        std::string soundsDir = findFile(kSoundsDir);
+        if (!soundsDir.empty()) emulator.loadDriveSounds(soundsDir);
         emulator.run();
     }
     return 0;

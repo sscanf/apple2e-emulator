@@ -11,3 +11,6 @@ build/
 *.swp
 *.swo
 *~
+
+# Drive sound samples (third-party recordings, not redistributed)
+sounds/

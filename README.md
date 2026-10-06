@@ -36,6 +36,7 @@ also works from inside `build/`.
 | F12 | RESET (CTRL-RESET) |
 | Shift+F12 | Power cycle |
 | Cmd+1 / Cmd+2 | Insert a disk in drive 1 / 2 |
+| Cmd+D | Drive sounds on/off |
 | Cmd+V | Paste text |
 | Cmd+Q | Quit |
 | Caps Lock | Toggle Apple CAPS LOCK (on by default) |
@@ -58,6 +59,15 @@ Changes are written back to the image file when the disk is ejected or the
 emulator quits (a `*` before the name means unsaved changes). Images whose file
 is read-only are write-protected. Sector images are saved only if every sector
 still decodes, so a disk that fails to decode is never overwritten.
+
+### Drive sounds
+
+If a `sounds/` folder is found (same places as the ROMs), the drive plays its
+mechanical noises: `Spin_Sound.wav` loops while the disk spins,
+`Read_1_Sound.wav`/`Read_2_Sound.wav` click on each head step, and
+`Grunt_Grind_1_Sound.wav`/`Grunt_Grind_2_Sound.wav` play when the head hits the
+track 0 stop. They must be 16-bit PCM WAV files. The samples are not included
+in the repository.
 
 ### Headless mode
 
