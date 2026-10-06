@@ -1,61 +1,75 @@
 #include "audio.h"
 
-#include <cstring>
-#include <cmath>
+#include "io.h"
+
 #include <iostream>
 
 namespace apple2e {
 
-AudioController::AudioController() {}
+namespace {
+constexpr float kVolume = 0.25f;
+constexpr float kDcBlock = 0.995f;
+constexpr double kMaxQueuedSeconds = 0.1;  // drop audio rather than build up lag
+}
 
-AudioController::~AudioController() {}
+AudioController::~AudioController() {
+    if (m_device) SDL_CloseAudioDevice(m_device);
+}
 
-bool AudioController::init(float sampleRate) {
-    m_sampleRate = sampleRate;
+bool AudioController::init(int sampleRate) {
+    SDL_AudioSpec want{};
+    want.freq = sampleRate;
+    want.format = AUDIO_S16SYS;
+    want.channels = 1;
+    want.samples = 1024;
+
+    SDL_AudioSpec have{};
+    m_device = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
+    if (!m_device) {
+        std::cerr << "Audio disabled: " << SDL_GetError() << std::endl;
+        return false;
+    }
+
+    m_cyclesPerSample = kCpuClockHz / have.freq;
+    SDL_PauseAudioDevice(m_device, 0);
     return true;
 }
 
-void AudioController::setSpeakerState(bool state) {
-    m_targetVolume = state ? 1.0f : 0.0f;
+void AudioController::toggleSpeaker(uint64_t cycle) {
+    m_toggles.push_back(cycle);
 }
 
-void AudioController::audioCallbackInternal(int16_t* buffer, uint32_t frames) {
-    // Generate audio samples
-    for (uint32_t i = 0; i < frames; i++) {
-        // Smooth volume transition
-        float volumeDiff = m_targetVolume - m_currentVolume;
-        m_currentVolume += volumeDiff * 0.01f;  // Smooth transition
-
-        if (m_currentVolume > 0.001f) {
-            // Generate speaker beep (square wave)
-            // Apple II speaker frequency is roughly 1000-2000 Hz
-            m_oscillatorPhase += m_oscillatorFreq / m_sampleRate;
-            if (m_oscillatorPhase >= 1.0f) {
-                m_oscillatorPhase -= 1.0f;
-            }
-
-            // Square wave
-            int16_t sample = (m_oscillatorPhase < 0.5f) ? 32767 : -32768;
-            sample = static_cast<int16_t>(static_cast<float>(sample) * m_currentVolume * 0.3f);
-            buffer[i] = sample;
-        } else {
-            buffer[i] = 0;
-        }
+void AudioController::endFrame(uint64_t cycle) {
+    if (!m_device) {
+        m_level ^= m_toggles.size() & 1;
+        m_toggles.clear();
+        return;
     }
-}
 
-void AudioController::s_audioCallback(void* userdata, uint8_t* stream, int len) {
-    AudioController* audio = static_cast<AudioController*>(userdata);
-    uint32_t frames = len / sizeof(int16_t);
-    int16_t* buffer = reinterpret_cast<int16_t*>(stream);
+    m_samples.clear();
+    size_t next = 0;
+    while (m_nextSampleCycle < static_cast<double>(cycle)) {
+        while (next < m_toggles.size() && m_toggles[next] <= m_nextSampleCycle) {
+            m_level = !m_level;
+            next++;
+        }
 
-    audio->audioCallbackInternal(buffer, frames);
-}
+        float in = m_level ? kVolume : -kVolume;
+        float out = in - m_prevIn + kDcBlock * m_prevOut;
+        m_prevIn = in;
+        m_prevOut = out;
+        m_samples.push_back(static_cast<int16_t>(out * 32767.0f));
 
-AudioController::AudioCallback AudioController::getCallback() {
-    return [this](int16_t* buffer, uint32_t frames) {
-        audioCallbackInternal(buffer, frames);
-    };
+        m_nextSampleCycle += m_cyclesPerSample;
+    }
+    m_toggles.erase(m_toggles.begin(), m_toggles.begin() + next);
+
+    uint32_t queuedBytes = SDL_GetQueuedAudioSize(m_device);
+    double queuedSeconds = queuedBytes / (sizeof(int16_t) * kCpuClockHz / m_cyclesPerSample);
+    if (queuedSeconds < kMaxQueuedSeconds) {
+        SDL_QueueAudio(m_device, m_samples.data(),
+                       static_cast<uint32_t>(m_samples.size() * sizeof(int16_t)));
+    }
 }
 
 } // namespace apple2e

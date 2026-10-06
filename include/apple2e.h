@@ -1,11 +1,13 @@
 #pragma once
 
-#include "cpu.h"
-#include "memory.h"
-#include "io.h"
-#include "video.h"
 #include "audio.h"
+#include "cpu.h"
+#include "io.h"
 #include "keyboard.h"
+#include "memory.h"
+#include "video.h"
+
+#include <SDL.h>
 
 #include <string>
 
@@ -17,79 +19,46 @@ public:
     Apple2e();
     ~Apple2e();
 
-    // Initialize with ROM file
-    bool init(const std::string& romPath);
+    // Load the ROM and, unless headless, open the window and audio device
+    bool init(const std::string& romPath, bool headless = false);
 
-    // Run emulation loop
+    // Interactive loop at real speed until the window is closed
     void run();
 
-    // Stop emulation
-    void stop();
+    // Run a number of frames as fast as possible (no window, no audio)
+    void runFrames(int frames);
 
-    // Toggle display
-    void toggleDisplay();
+    // Warm reset (CTRL-RESET) or power cycle
+    void reset(bool coldStart);
 
-    // Get CPU cycle count
-    uint64_t getCycles() const { return m_cycles; }
+    // Type text as if entered on the keyboard, after `delayFrames` frames
+    // (the ROM discards keys pressed while it is still booting)
+    void typeText(const std::string& text, int delayFrames = 0);
 
-    // Get FPS
-    double getFPS() const { return m_fps; }
-
-    // Get current PC
-    uint16_t getCurrentPC() const { return m_cpu.pc(); }
+    // Text screen contents as ASCII
+    std::string screenText() const { return m_video.textDump(); }
+    bool saveScreenshot(const std::string& path) const { return m_video.saveScreenshot(path); }
 
 private:
-    // Memory/I/O callbacks
-    uint8_t memoryReadCallback(uint16_t addr);
-    void memoryWriteCallback(uint16_t addr, uint8_t val);
-    void cycleCallback(uint32_t cycles);
+    void runFrame();
+    void handleEvent(const SDL_Event& event, bool& running);
 
-    // Video memory callbacks
-    uint8_t videoMemoryReadCallback(uint16_t addr);
-
-    // Keyboard VIA callbacks
-    uint8_t via1PortAReadCallback();
-    void via1PortBWriteCallback(uint8_t val);
-
-    // Keyboard PIA callbacks
-    uint8_t piaPortAReadCallback();
-    uint8_t piaPortBReadCallback();
-
-    // Initialize hardware
-    void initCPU();
-    void initMemory(const std::string& romPath);
-    void initIO();
-    void initVideo();
-    void initAudio();
-    void initKeyboard();
-
-    // Handle reset vector
-    void handleReset();
-
-    // SDL state
-    SDL_Window* m_window = nullptr;
-    SDL_Renderer* m_renderer = nullptr;
-    bool m_running = false;
-
-    // Hardware components
-    CPU m_cpu;
+    // Construction order matters: components reference each other
+    uint64_t m_cycles = 0;
+    SoftSwitches m_switches;
+    KeyboardController m_keyboard;
+    AudioController m_audio;
     Memory m_memory;
     IOController m_io;
-    VIA m_via1;
-    VIA m_via2;
-    PIA m_pia;
+    CPU m_cpu;
     VideoController m_video;
-    AudioController m_audio;
-    KeyboardController m_keyboard;
 
-    // Timing
-    uint64_t m_cycles = 0;
-    double m_fps = 0;
-    uint64_t m_frameStart = 0;
-    int m_frameCount = 0;
+    std::string m_delayedText;
+    int m_typeDelayFrames = 0;
 
-    // ROM path
-    std::string m_romPath;
+    SDL_Window* m_window = nullptr;
+    SDL_Renderer* m_renderer = nullptr;
+    bool m_sdlInitialized = false;
 };
 
 } // namespace apple2e
