@@ -2,6 +2,8 @@
 
 #include <SDL.h>
 
+#include <atomic>
+#include <memory>
 #include <string>
 
 namespace apple2e {
@@ -22,8 +24,12 @@ public:
     // Returns true if the event was handled by the panel
     bool handleEvent(const SDL_Event& event, SDL_Renderer* renderer);
 
-    // Ask for a disk image with the system file dialog and insert it
+    // Open the system file dialog for `drive`. It runs on its own thread so
+    // emulation (and drive sound) carries on; the disk is inserted by update()
     void chooseDisk(int drive);
+
+    // Call once per frame: inserts the disk once the file dialog has closed
+    void update();
 
 private:
     SDL_Rect driveRect(int drive) const;
@@ -32,7 +38,15 @@ private:
     void eject(int drive);
     void drawDrive(SDL_Renderer* renderer, int drive) const;
 
+    // Result of a file dialog running in the background
+    struct DialogResult {
+        std::atomic<bool> done{false};
+        std::string path;
+    };
+
     Disk2Controller* m_controller;
+    std::shared_ptr<DialogResult> m_dialog;  // non-null while a dialog is open
+    int m_dialogDrive = 0;
     int m_x;
     int m_height;
     std::string m_lastDirectory;
