@@ -15,6 +15,8 @@ add_library(apple2e_core STATIC
     src/apple2e.cpp
     src/audio.cpp
     src/cpu.cpp
+    src/disk2.cpp
+    src/diskpanel.cpp
     src/io.cpp
     src/keyboard.cpp
     src/memory.cpp

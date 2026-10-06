@@ -5,22 +5,41 @@
 
 namespace apple2e {
 
+namespace {
+constexpr int kDiskSlot = 6;
+constexpr int kScreenWidth = VideoController::kWidth;
+constexpr int kScreenHeight = VideoController::kHeight * 2;  // scanlines doubled for 4:3
+constexpr int kLogicalWidth = kScreenWidth + DiskPanel::kWidth;
+}
+
 Apple2e::Apple2e()
     : m_memory(m_switches),
       m_io(m_switches, m_keyboard, m_audio, m_cycles),
       m_cpu(m_memory),
-      m_video(m_memory, m_switches) {
+      m_video(m_memory, m_switches),
+      m_disk2(m_cycles) {
     m_memory.setIO(&m_io);
 }
 
 Apple2e::~Apple2e() {
+    if (m_hasDisk2) m_disk2.flush();
     if (m_renderer) SDL_DestroyRenderer(m_renderer);
     if (m_window) SDL_DestroyWindow(m_window);
     if (m_sdlInitialized) SDL_Quit();
 }
 
-bool Apple2e::init(const std::string& romPath, bool headless) {
+bool Apple2e::init(const std::string& romPath, const std::string& diskRomPath, bool headless) {
     if (!m_memory.loadRom(romPath)) return false;
+
+    m_hasDisk2 = !diskRomPath.empty() && m_disk2.loadRom(diskRomPath);
+    if (m_hasDisk2) {
+        m_memory.setCard(kDiskSlot, &m_disk2);
+        m_io.setCard(kDiskSlot, &m_disk2);
+    } else {
+        std::cerr << "No Disk II ROM (disk2.rom): running without disk drives" << std::endl;
+    }
+
+    m_diskPanel = std::make_unique<DiskPanel>(m_hasDisk2 ? &m_disk2 : nullptr, kScreenWidth, kScreenHeight);
 
     if (!headless) {
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
@@ -30,7 +49,7 @@ bool Apple2e::init(const std::string& romPath, bool headless) {
         m_sdlInitialized = true;
 
         m_window = SDL_CreateWindow("Apple IIe", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                                    VideoController::kWidth * 3 / 2, VideoController::kHeight * 3,
+                                    kLogicalWidth * 3 / 2, kScreenHeight * 3 / 2,
                                     SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
         if (!m_window) {
             std::cerr << "SDL window creation failed: " << SDL_GetError() << std::endl;
@@ -47,12 +66,35 @@ bool Apple2e::init(const std::string& romPath, bool headless) {
             std::cerr << "Video init failed: " << SDL_GetError() << std::endl;
             return false;
         }
+        SDL_RenderSetLogicalSize(m_renderer, kLogicalWidth, kScreenHeight);
         m_audio.init();
         SDL_StartTextInput();
     }
 
     reset(true);
     return true;
+}
+
+std::string Apple2e::insertDisk(int drive, const std::string& path) {
+    if (!m_hasDisk2) return "No Disk II controller (disk2.rom not found)";
+    return m_disk2.insert(drive, path);
+}
+
+bool Apple2e::saveScreenshot(const std::string& path) const {
+    SDL_Surface* surface = SDL_CreateRGBSurfaceWithFormat(0, kLogicalWidth, kScreenHeight, 32,
+                                                          SDL_PIXELFORMAT_ARGB8888);
+    if (!surface) return false;
+
+    m_video.copyToSurface(surface);
+    if (SDL_Renderer* renderer = SDL_CreateSoftwareRenderer(surface)) {
+        m_diskPanel->draw(renderer);
+        SDL_RenderPresent(renderer);
+        SDL_DestroyRenderer(renderer);
+    }
+
+    bool ok = SDL_SaveBMP(surface, path.c_str()) == 0;
+    SDL_FreeSurface(surface);
+    return ok;
 }
 
 void Apple2e::reset(bool coldStart) {
@@ -117,13 +159,18 @@ void Apple2e::handleEvent(const SDL_Event& event, bool& running) {
             running = false;
             return;
         }
+        if ((mod & KMOD_GUI) && (key == SDLK_1 || key == SDLK_2)) {
+            m_diskPanel->chooseDisk(key == SDLK_1 ? 0 : 1);
+            return;
+        }
     }
 
+    if (m_diskPanel->handleEvent(event, m_renderer)) return;
     m_keyboard.handleEvent(event);
 }
 
 void Apple2e::run() {
-    std::cout << "F12: RESET   Shift+F12: reboot   Cmd+V: paste   Cmd+Q / close window: quit\n";
+    std::cout << "F12: RESET   Shift+F12: reboot   Cmd+1/Cmd+2: insert disk   Cmd+V: paste   Cmd+Q: quit\n";
 
     const double counterHz = static_cast<double>(SDL_GetPerformanceFrequency());
     const double frameSeconds = kCyclesPerFrame / kCpuClockHz;
@@ -138,7 +185,11 @@ void Apple2e::run() {
         while (SDL_PollEvent(&event)) handleEvent(event, running);
 
         runFrame();
-        m_video.present(m_renderer);
+        SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
+        SDL_RenderClear(m_renderer);
+        m_video.draw(m_renderer, {0, 0, kScreenWidth, kScreenHeight});
+        m_diskPanel->draw(m_renderer);
+        SDL_RenderPresent(m_renderer);
 
         // Pace to the real machine's ~59.92 Hz frame rate
         nextFrame += frameSeconds;

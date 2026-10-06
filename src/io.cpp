@@ -1,6 +1,7 @@
 #include "io.h"
 
 #include "audio.h"
+#include "card.h"
 #include "keyboard.h"
 #include "memory.h"
 
@@ -15,6 +16,11 @@ bool IOController::inVerticalBlank() const {
 }
 
 uint8_t IOController::read(uint16_t addr) {
+    if (addr >= 0xC090) {
+        Card* card = m_cards[(addr >> 4) & 0x07];
+        return card ? card->io(addr & 0x0F, false, 0) : 0x00;
+    }
+
     uint8_t keyLatch = m_keyboard.data() & 0x7F;
     auto status = [keyLatch](bool on) -> uint8_t { return (on ? 0x80 : 0x00) | keyLatch; };
 
@@ -60,7 +66,10 @@ uint8_t IOController::read(uint16_t addr) {
 }
 
 void IOController::write(uint16_t addr, uint8_t val) {
-    (void)val;
+    if (addr >= 0xC090) {
+        if (Card* card = m_cards[(addr >> 4) & 0x07]) card->io(addr & 0x0F, true, val);
+        return;
+    }
 
     switch (addr & 0xFFF0) {
         case 0xC000:
