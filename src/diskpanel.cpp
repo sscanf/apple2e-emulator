@@ -5,6 +5,7 @@
 
 #include <cstdio>
 #include <filesystem>
+#include <thread>
 #include <vector>
 
 namespace apple2e {
@@ -145,9 +146,23 @@ void DiskPanel::eject(int drive) {
 }
 
 void DiskPanel::chooseDisk(int drive) {
-    if (!m_controller) return;
-    std::string path = openFileDialog("Insert a disk in drive " + std::to_string(drive + 1), m_lastDirectory);
-    if (!path.empty()) insert(drive, path);
+    if (!m_controller || m_dialog) return;  // one dialog at a time
+
+    // The thread only touches the shared result, so it may outlive the panel
+    // (e.g. quitting with the dialog still open)
+    m_dialog = std::make_shared<DialogResult>();
+    m_dialogDrive = drive;
+    std::string prompt = "Insert a disk in drive " + std::to_string(drive + 1);
+    std::thread([result = m_dialog, prompt, directory = m_lastDirectory] {
+        result->path = openFileDialog(prompt, directory);
+        result->done = true;
+    }).detach();
+}
+
+void DiskPanel::update() {
+    if (!m_dialog || !m_dialog->done) return;
+    if (!m_dialog->path.empty()) insert(m_dialogDrive, m_dialog->path);
+    m_dialog.reset();
 }
 
 bool DiskPanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
@@ -210,6 +225,10 @@ void DiskPanel::drawDrive(SDL_Renderer* r, int drive) const {
 
     // Image name
     int textY = y + kBodyHeight + 6;
+    if (m_dialog && m_dialogDrive == drive) {
+        drawText(r, x, textY, "Choosing a disk...", kWarnText);
+        return;
+    }
     if (!disk.loaded()) {
         drawText(r, x, textY, "(empty)", kDimText);
         return;

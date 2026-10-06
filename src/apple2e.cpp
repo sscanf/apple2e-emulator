@@ -203,6 +203,7 @@ void Apple2e::run() {
     while (running) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) handleEvent(event, running);
+        m_diskPanel->update();
 
         runFrame();
         SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
