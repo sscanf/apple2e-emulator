@@ -1,44 +1,39 @@
 #pragma once
 
+#include <SDL.h>
+
 #include <cstdint>
 #include <vector>
-#include <functional>
 
 namespace apple2e {
 
-// Audio output for Apple IIe speaker
+// 1-bit speaker: every access to $C030 flips the cone. Toggles are
+// timestamped in CPU cycles and turned into samples at the end of each frame.
 class AudioController {
 public:
-    AudioController();
     ~AudioController();
 
-    // Initialize audio
-    bool init(float sampleRate = 44100.0f);
+    // Opens the output device; SDL audio must already be initialised
+    bool init(int sampleRate = 44100);
 
-    // Set speaker state (from VIA)
-    void setSpeakerState(bool state);
+    void toggleSpeaker(uint64_t cycle);
 
-    // Get audio callback for SDL
-    using AudioCallback = std::function<void(int16_t* buffer, uint32_t frames)>;
-    AudioCallback getCallback();
-
-    // Get current sample rate
-    float getSampleRate() const { return m_sampleRate; }
+    // Render all samples up to `cycle` and queue them for playback
+    void endFrame(uint64_t cycle);
 
 private:
-    void audioCallbackInternal(int16_t* buffer, uint32_t frames);
+    SDL_AudioDeviceID m_device = 0;
+    double m_cyclesPerSample = 0;
+    double m_nextSampleCycle = 0;
 
-    float m_sampleRate = 44100.0f;
-    bool m_speakerState = false;
-    float m_currentVolume = 0.0f;
-    float m_targetVolume = 0.0f;
+    std::vector<uint64_t> m_toggles;
+    bool m_level = false;
 
-    // Simple oscillator for speaker beep
-    float m_oscillatorPhase = 0.0f;
-    float m_oscillatorFreq = 1000.0f; // Hz
+    // DC-blocking filter state (the cone rests at either level)
+    float m_prevIn = 0;
+    float m_prevOut = 0;
 
-    // Audio callback function pointer
-    static void s_audioCallback(void* userdata, uint8_t* stream, int len);
+    std::vector<int16_t> m_samples;
 };
 
 } // namespace apple2e
