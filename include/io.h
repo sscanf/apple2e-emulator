@@ -4,6 +4,7 @@
 
 namespace apple2e {
 
+class Card;
 struct SoftSwitches;
 class KeyboardController;
 class AudioController;
@@ -24,6 +25,8 @@ public:
     uint8_t read(uint16_t addr);
     void write(uint16_t addr, uint8_t val);
 
+    void setCard(int slot, Card* card) { m_cards[slot] = card; }
+
 private:
     // Switches that respond to both reads and writes
     void accessCommon(uint16_t addr, bool isRead);
@@ -34,6 +37,7 @@ private:
     KeyboardController& m_keyboard;
     AudioController& m_audio;
     const uint64_t& m_cycles;
+    Card* m_cards[8] = {};
 };
 
 } // namespace apple2e

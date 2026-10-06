@@ -10,32 +10,37 @@
 namespace {
 
 constexpr const char* kDefaultRom = "apple2e.rom";
+constexpr const char* kDiskRom = "disk2.rom";
 
-// Without an explicit path, look for the ROM in the current directory, next to
-// the executable, and one level above it (the project root for build/ trees)
-std::string findDefaultRom() {
+// Look for a support file in the current directory, next to the executable,
+// and one level above it (the project root for build/ trees). Empty if absent.
+std::string findFile(const std::string& name) {
     namespace fs = std::filesystem;
-    std::vector<fs::path> candidates = {kDefaultRom};
+    std::vector<fs::path> candidates = {name};
     if (char* base = SDL_GetBasePath()) {
         fs::path exeDir(base);  // ends with a separator, so parent_path() is the dir itself
         SDL_free(base);
-        candidates.push_back(exeDir / kDefaultRom);
-        candidates.push_back(exeDir.parent_path().parent_path() / kDefaultRom);
+        candidates.push_back(exeDir / name);
+        candidates.push_back(exeDir.parent_path().parent_path() / name);
     }
 
     std::error_code ec;
     for (const auto& path : candidates) {
         if (fs::is_regular_file(path, ec)) return path.string();
     }
-    return kDefaultRom;
+    return {};
 }
 
 void usage(const char* argv0) {
-    std::cerr << "usage: " << argv0 << " [rom] [--headless FRAMES] [--type TEXT] [--screenshot FILE]\n"
+    std::cerr << "usage: " << argv0 << " [rom] [--disk1 FILE] [--disk2 FILE] [--headless FRAMES]\n"
+              << "       [--type TEXT] [--screenshot FILE]\n"
               << "  rom                 Apple IIe ROM image (default: apple2e.rom here,\n"
               << "                      next to the executable or in its parent folder)\n"
+              << "  --disk1/--disk2 F   insert a disk image (.dsk/.do/.po/.nib) in drive 1/2;\n"
+              << "                      needs disk2.rom (Disk II boot ROM), looked up like the ROM\n"
               << "  --headless FRAMES   run without a window and print the text screen\n"
               << "  --type TEXT         type TEXT one second after boot (newlines become RETURN)\n"
+              << "  --type-delay FRAMES frames to wait before typing (default 60; 60 per second)\n"
               << "  --screenshot FILE   with --headless, also save the final frame as BMP\n";
 }
 
@@ -45,7 +50,9 @@ int main(int argc, char* argv[]) {
     std::string romPath;
     std::string typed;
     std::string screenshotPath;
+    std::string diskPaths[2];
     int headlessFrames = -1;
+    int typeDelayFrames = 60;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -53,6 +60,10 @@ int main(int argc, char* argv[]) {
             headlessFrames = std::atoi(argv[++i]);
         } else if (arg == "--type" && i + 1 < argc) {
             typed = argv[++i];
+        } else if ((arg == "--disk1" || arg == "--disk2") && i + 1 < argc) {
+            diskPaths[arg == "--disk1" ? 0 : 1] = argv[++i];
+        } else if (arg == "--type-delay" && i + 1 < argc) {
+            typeDelayFrames = std::atoi(argv[++i]);
         } else if (arg == "--screenshot" && i + 1 < argc) {
             screenshotPath = argv[++i];
         } else if (arg == "-h" || arg == "--help") {
@@ -66,15 +77,20 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (romPath.empty()) romPath = findDefaultRom();
+    if (romPath.empty()) romPath = findFile(kDefaultRom);
+    if (romPath.empty()) romPath = kDefaultRom;  // let init report it missing
 
     apple2e::Apple2e emulator;
-    if (!emulator.init(romPath, headlessFrames >= 0)) {
+    if (!emulator.init(romPath, findFile(kDiskRom), headlessFrames >= 0)) {
         std::cerr << "Failed to initialize emulator." << std::endl;
         return 1;
     }
-    constexpr int kBootFrames = 60;
-    emulator.typeText(typed, kBootFrames);
+    for (int drive = 0; drive < 2; drive++) {
+        if (diskPaths[drive].empty()) continue;
+        std::string error = emulator.insertDisk(drive, diskPaths[drive]);
+        if (!error.empty()) std::cerr << error << std::endl;
+    }
+    emulator.typeText(typed, typeDelayFrames);
 
     if (headlessFrames >= 0) {
         emulator.runFrames(headlessFrames);

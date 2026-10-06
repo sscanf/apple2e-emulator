@@ -2,6 +2,8 @@
 
 #include "audio.h"
 #include "cpu.h"
+#include "disk2.h"
+#include "diskpanel.h"
 #include "io.h"
 #include "keyboard.h"
 #include "memory.h"
@@ -9,6 +11,7 @@
 
 #include <SDL.h>
 
+#include <memory>
 #include <string>
 
 namespace apple2e {
@@ -19,8 +22,12 @@ public:
     Apple2e();
     ~Apple2e();
 
-    // Load the ROM and, unless headless, open the window and audio device
-    bool init(const std::string& romPath, bool headless = false);
+    // Load the ROMs and, unless headless, open the window and audio device.
+    // Without a Disk II ROM the machine runs with no disk controller.
+    bool init(const std::string& romPath, const std::string& diskRomPath, bool headless = false);
+
+    // Insert a disk image into drive 0/1; returns an error message on failure
+    std::string insertDisk(int drive, const std::string& path);
 
     // Interactive loop at real speed until the window is closed
     void run();
@@ -37,7 +44,8 @@ public:
 
     // Text screen contents as ASCII
     std::string screenText() const { return m_video.textDump(); }
-    bool saveScreenshot(const std::string& path) const { return m_video.saveScreenshot(path); }
+    // Save the screen and disk panel as a BMP
+    bool saveScreenshot(const std::string& path) const;
 
 private:
     void runFrame();
@@ -52,6 +60,9 @@ private:
     IOController m_io;
     CPU m_cpu;
     VideoController m_video;
+    Disk2Controller m_disk2;
+    bool m_hasDisk2 = false;
+    std::unique_ptr<DiskPanel> m_diskPanel;
 
     std::string m_delayedText;
     int m_typeDelayFrames = 0;

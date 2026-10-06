@@ -72,7 +72,11 @@ uint8_t Memory::readPeripheralRom(uint16_t addr) {
     if (addr < 0xC800) {
         bool internalC3 = slot == 3 && !m_sw.slotc3rom;
         if (internalC3) m_sw.intc8rom = true;
-        if (m_sw.intcxrom || internalC3) value = m_rom[addr - 0xC000];
+        if (m_sw.intcxrom || internalC3) {
+            value = m_rom[addr - 0xC000];
+        } else if (m_cards[slot]) {
+            value = m_cards[slot]->rom(addr & 0xFF);
+        }
     } else {
         if (m_sw.intcxrom || m_sw.intc8rom) value = m_rom[addr - 0xC000];
         if (addr == 0xCFFF) m_sw.intc8rom = false;

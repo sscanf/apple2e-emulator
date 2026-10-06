@@ -6,7 +6,8 @@ Enhanced Apple IIe emulator in C++20 with SDL2.
 - 64 KB main + 64 KB auxiliary RAM, language card, IIe MMU soft switches
 - 40/80-column text, lo-res, hi-res (NTSC artifact colour), mixed mode
 - Keyboard, Open/Solid Apple buttons, 1-bit speaker
-- No disk drive yet: it boots straight into Applesoft BASIC
+- Disk II controller in slot 6 with two drives (.dsk/.do/.po/.nib, read and write),
+  shown in a side panel; boots DOS 3.3 and ProDOS
 
 ## Build
 
@@ -34,10 +35,29 @@ also works from inside `build/`.
 |-----|--------|
 | F12 | RESET (CTRL-RESET) |
 | Shift+F12 | Power cycle |
+| Cmd+1 / Cmd+2 | Insert a disk in drive 1 / 2 |
 | Cmd+V | Paste text |
 | Cmd+Q | Quit |
 | Caps Lock | Toggle Apple CAPS LOCK (on by default) |
 | Left / Right Alt | Open Apple / Solid Apple |
+
+### Disks
+
+The Disk II needs its 256-byte boot ROM (341-0027) as `disk2.rom`, looked up
+in the same places as `apple2e.rom`. Without it the emulator runs with no disk
+controller and boots into BASIC.
+
+In the side panel, click a drive to choose a disk image, right-click it to
+eject, or drop an image file onto it. Disks can also be inserted at startup:
+
+```sh
+./build/apple2e_emulator --disk1 "DOS 3.3.dsk" --disk2 data.dsk
+```
+
+Changes are written back to the image file when the disk is ejected or the
+emulator quits (a `*` before the name means unsaved changes). Images whose file
+is read-only are write-protected. Sector images are saved only if every sector
+still decodes, so a disk that fails to decode is never overwritten.
 
 ### Headless mode
 
@@ -46,6 +66,7 @@ prints the text screen and optionally saves a screenshot.
 
 ```sh
 ./build/apple2e_emulator --headless 300 --type $'PRINT 2+2\n' --screenshot out.bmp
+./build/apple2e_emulator --headless 1500 --disk1 dos33.dsk --type-delay 700 --type $'CATALOG\n'
 ```
 
 ## CPU tests

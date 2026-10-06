@@ -25,14 +25,15 @@ public:
 
     // Draw the current frame into the framebuffer (advances flash timing)
     void renderFrame();
-    // Upload the framebuffer and draw it scaled to the window
-    void present(SDL_Renderer* renderer);
+    // Upload the framebuffer and draw it into `dst` (renderer coordinates)
+    void draw(SDL_Renderer* renderer, const SDL_Rect& dst);
 
     // Text page contents as plain ASCII, 24 lines (for headless runs)
     std::string textDump() const;
 
-    // Write the framebuffer to a BMP file (scanlines doubled, as displayed)
-    bool saveScreenshot(const std::string& path) const;
+    // Copy the framebuffer into the top-left of an ARGB8888 surface,
+    // scanlines doubled as displayed
+    void copyToSurface(SDL_Surface* surface) const;
 
 private:
     void drawTextRow(int row, uint16_t base);

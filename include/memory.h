@@ -1,5 +1,6 @@
 #pragma once
 
+#include "card.h"
 #include "cpu.h"
 
 #include <array>
@@ -57,6 +58,7 @@ public:
     // Accepts a 16 KB $C000-$FFFF image, or a 32 KB image whose upper half is
     bool loadRom(const std::string& path);
     void setIO(IOController* io) { m_io = io; }
+    void setCard(int slot, Card* card) { m_cards[slot] = card; }
     void clearRam();
 
     uint8_t read(uint16_t addr) override;
@@ -77,6 +79,7 @@ private:
 
     SoftSwitches& m_sw;
     IOController* m_io = nullptr;
+    std::array<Card*, 8> m_cards{};
 
     Bank m_main{};
     Bank m_aux{};
