@@ -26,6 +26,10 @@ is that image). It is not included in the repository.
 ./build/apple2e_emulator apple2e.rom
 ```
 
+Without a path it looks for `apple2e.rom` in the current directory, next to
+the executable and in the executable's parent folder, so `./apple2e_emulator`
+also works from inside `build/`.
+
 | Key | Action |
 |-----|--------|
 | F12 | RESET (CTRL-RESET) |

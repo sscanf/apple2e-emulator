@@ -2,14 +2,38 @@
 #include "apple2e.h"
 
 #include <cstdlib>
+#include <filesystem>
 #include <iostream>
 #include <string>
+#include <vector>
 
 namespace {
 
+constexpr const char* kDefaultRom = "apple2e.rom";
+
+// Without an explicit path, look for the ROM in the current directory, next to
+// the executable, and one level above it (the project root for build/ trees)
+std::string findDefaultRom() {
+    namespace fs = std::filesystem;
+    std::vector<fs::path> candidates = {kDefaultRom};
+    if (char* base = SDL_GetBasePath()) {
+        fs::path exeDir(base);  // ends with a separator, so parent_path() is the dir itself
+        SDL_free(base);
+        candidates.push_back(exeDir / kDefaultRom);
+        candidates.push_back(exeDir.parent_path().parent_path() / kDefaultRom);
+    }
+
+    std::error_code ec;
+    for (const auto& path : candidates) {
+        if (fs::is_regular_file(path, ec)) return path.string();
+    }
+    return kDefaultRom;
+}
+
 void usage(const char* argv0) {
     std::cerr << "usage: " << argv0 << " [rom] [--headless FRAMES] [--type TEXT] [--screenshot FILE]\n"
-              << "  rom                 Apple IIe ROM image (default: apple2e.rom)\n"
+              << "  rom                 Apple IIe ROM image (default: apple2e.rom here,\n"
+              << "                      next to the executable or in its parent folder)\n"
               << "  --headless FRAMES   run without a window and print the text screen\n"
               << "  --type TEXT         type TEXT one second after boot (newlines become RETURN)\n"
               << "  --screenshot FILE   with --headless, also save the final frame as BMP\n";
@@ -18,7 +42,7 @@ void usage(const char* argv0) {
 } // namespace
 
 int main(int argc, char* argv[]) {
-    std::string romPath = "apple2e.rom";
+    std::string romPath;
     std::string typed;
     std::string screenshotPath;
     int headlessFrames = -1;
@@ -41,6 +65,8 @@ int main(int argc, char* argv[]) {
             romPath = arg;
         }
     }
+
+    if (romPath.empty()) romPath = findDefaultRom();
 
     apple2e::Apple2e emulator;
     if (!emulator.init(romPath, headlessFrames >= 0)) {
