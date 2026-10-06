@@ -18,6 +18,7 @@ add_library(apple2e_core STATIC
     src/disk2.cpp
     src/diskpanel.cpp
     src/drivesounds.cpp
+    src/gameio.cpp
     src/io.cpp
     src/keyboard.cpp
     src/memory.cpp

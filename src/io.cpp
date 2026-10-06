@@ -2,14 +2,15 @@
 
 #include "audio.h"
 #include "card.h"
+#include "gameio.h"
 #include "keyboard.h"
 #include "memory.h"
 
 namespace apple2e {
 
 IOController::IOController(SoftSwitches& switches, KeyboardController& keyboard,
-                           AudioController& audio, const uint64_t& cycles)
-    : m_sw(switches), m_keyboard(keyboard), m_audio(audio), m_cycles(cycles) {}
+                           AudioController& audio, GameIO& gameIO, const uint64_t& cycles)
+    : m_sw(switches), m_keyboard(keyboard), m_audio(audio), m_gameIO(gameIO), m_cycles(cycles) {}
 
 bool IOController::inVerticalBlank() const {
     return (m_cycles % kCyclesPerFrame) >= kVisibleLines * kCyclesPerLine;
@@ -51,9 +52,11 @@ uint8_t IOController::read(uint16_t addr) {
 
         case 0xC060:
             switch (addr & 0x07) {
-                case 1: return m_keyboard.openApple() ? 0x80 : 0x00;
-                case 2: return m_keyboard.solidApple() ? 0x80 : 0x00;
-                default: return 0x00;  // cassette in, button 2, paddles (none connected)
+                case 0: return 0x00;  // cassette in
+                case 1: return (m_keyboard.openApple() || m_gameIO.button(0)) ? 0x80 : 0x00;
+                case 2: return (m_keyboard.solidApple() || m_gameIO.button(1)) ? 0x80 : 0x00;
+                case 3: return m_gameIO.button(2) ? 0x80 : 0x00;
+                default: return m_gameIO.paddleTimerRunning(addr & 0x03, m_cycles) ? 0x80 : 0x00;
             }
 
         case 0xC080:
@@ -129,8 +132,12 @@ void IOController::accessCommon(uint16_t addr, bool isRead) {
             }
             break;
 
+        case 0xC070:
+            m_gameIO.trigger(m_cycles);
+            break;
+
         default:
-            break;  // cassette out, game I/O strobe, paddle trigger, empty slots
+            break;  // cassette out, game I/O strobe
     }
 }
 
