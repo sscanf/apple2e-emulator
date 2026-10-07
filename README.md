@@ -45,7 +45,7 @@ also works from inside `build/`.
 | Cmd+G | Colour / green monitor |
 | Cmd+V | Paste text |
 | Cmd+Q | Quit |
-| Caps Lock | Toggle Apple CAPS LOCK (on by default) |
+| Caps Lock | Upper / lower case, as on the Mac (Applesoft accepts lowercase commands) |
 | Left / Right Alt | Open Apple / Solid Apple (buttons 0 / 1) |
 
 ### Mouse

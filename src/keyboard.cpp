@@ -24,7 +24,6 @@ void KeyboardController::queueText(const std::string& text) {
         if (ch == '\r') continue;
         if (ch == '\n') ch = 0x0D;
         if (ch >= 0x80) continue;
-        if (m_capsLock && ch >= 'a' && ch <= 'z') ch -= 0x20;
         m_pending.push_back(ch);
     }
 }
@@ -53,8 +52,7 @@ void KeyboardController::handleEvent(const SDL_Event& event) {
             for (const char* p = event.text.text; *p; ++p) {
                 uint8_t ch = static_cast<uint8_t>(*p);
                 if (ch >= 0x80) continue;  // non-ASCII has no Apple equivalent
-                if (m_capsLock && ch >= 'a' && ch <= 'z') ch -= 0x20;
-                press(ch);
+                press(ch);  // case already follows the Mac's Caps Lock and Shift
             }
             break;
         }
@@ -78,9 +76,6 @@ void KeyboardController::handleEvent(const SDL_Event& event) {
                 case SDLK_ESCAPE:    press(0x1B); return;
                 case SDLK_TAB:       press(0x09); return;
                 case SDLK_DELETE:    press(0x7F); return;
-                case SDLK_CAPSLOCK:
-                    if (!event.key.repeat) m_capsLock = !m_capsLock;
-                    return;
                 default: break;
             }
 
