@@ -5,7 +5,8 @@
 namespace apple2e {
 
 // 5x7 glyphs for ASCII $20-$7F, one byte per row, bit 4 = leftmost dot.
-// Rendered in a 7x8 cell with a blank column on each side and a blank 8th row.
+// Rendered in a 7x8 cell with a blank column on each side; the 8th row is
+// blank except for letters with descenders (see glyphRow).
 inline constexpr uint8_t kFont[96][7] = {
     {0x00,0x00,0x00,0x00,0x00,0x00,0x00}, // space
     {0x04,0x04,0x04,0x04,0x04,0x00,0x04}, // !
@@ -104,5 +105,17 @@ inline constexpr uint8_t kFont[96][7] = {
     {0x0D,0x16,0x00,0x00,0x00,0x00,0x00}, // ~
     {0x0A,0x15,0x0A,0x15,0x0A,0x15,0x0A}, // DEL (checkerboard)
 };
+
+// g, j, p, q and y hang below the baseline: their 7 rows sit one row lower
+// in the cell, as in the Apple IIe character generator
+inline constexpr bool hasDescender(uint8_t ascii) {
+    return ascii == 'g' || ascii == 'j' || ascii == 'p' || ascii == 'q' || ascii == 'y';
+}
+
+// Row 0-7 of the 8-row cell for an ASCII character ($20-$7F), bit 4 = leftmost dot
+inline constexpr uint8_t glyphRow(uint8_t ascii, int row) {
+    int r = hasDescender(ascii) ? row - 1 : row;
+    return (r >= 0 && r < 7) ? kFont[ascii - 0x20][r] : 0;
+}
 
 } // namespace apple2e

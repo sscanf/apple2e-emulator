@@ -5,6 +5,9 @@
 
 #include <algorithm>
 #include <cstring>
+#include <fstream>
+#include <iostream>
+#include <vector>
 
 namespace apple2e {
 
@@ -67,6 +70,33 @@ VideoController::~VideoController() {
     if (m_texture) SDL_DestroyTexture(m_texture);
 }
 
+bool VideoController::loadCharacterRom(const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file) return false;
+    std::vector<uint8_t> data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    if (data.size() != 0x1000 && data.size() != 0x2000) {
+        std::cerr << "Character ROM " << path << " must be 4 or 8 KB" << std::endl;
+        return false;
+    }
+
+    // The ROM is active low with bit 0 as the leftmost dot. Normal-video
+    // characters ($80-$FF, code = $80 | ASCII) give the plain glyphs.
+    size_t base = data.size() == 0x2000 ? 0x1000 : 0;
+    for (int ascii = 0x20; ascii < 0x80; ascii++) {
+        for (int row = 0; row < 8; row++) {
+            uint8_t bits = ~data[base + (0x80 | ascii) * 8 + row] & 0x7F;
+            uint8_t dots = 0;
+            for (int d = 0; d < 7; d++) {
+                if (bits & (1 << d)) dots |= 0x40 >> d;
+            }
+            m_romGlyphs[ascii - 0x20][row] = dots;
+        }
+    }
+    m_hasCharRom = true;
+    std::cout << "Character ROM loaded from " << path << std::endl;
+    return true;
+}
+
 bool VideoController::init(SDL_Renderer* renderer) {
     m_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
                                   SDL_TEXTUREACCESS_STREAMING, kWidth, kHeight);
@@ -118,7 +148,10 @@ void VideoController::drawGlyph(int x, int y, int dotWidth, uint8_t ch) {
     uint32_t fg = foreground();
 
     for (int row = 0; row < 8; row++) {
-        uint8_t dots = (row < 7 && !dc.mouseText) ? kFont[dc.ascii - 0x20][row] << 1 : 0;
+        uint8_t dots = 0;
+        if (!dc.mouseText) {
+            dots = m_hasCharRom ? m_romGlyphs[dc.ascii - 0x20][row] : glyphRow(dc.ascii, row) << 1;
+        }
         if (inverse) dots ^= 0x7F;
 
         uint32_t* out = line(y + row) + x;

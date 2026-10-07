@@ -30,6 +30,9 @@ public:
     // Without a Disk II ROM the machine runs with no disk controller.
     bool init(const std::string& romPath, const std::string& diskRomPath, bool headless = false);
 
+    // Use a real character generator ROM for text (see VideoController)
+    bool loadCharacterRom(const std::string& path) { return m_video.loadCharacterRom(path); }
+
     // Colour or green-phosphor monitor
     void setMonochrome(bool on) { m_video.setMonochrome(on); }
 

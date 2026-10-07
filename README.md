@@ -69,6 +69,13 @@ Whichever moved last sets the position. Try it in BASIC with
 `PRINT PDL(0), PDL(1)`. While a program uses the mouse card, the mouse drives
 the card instead.
 
+### Character ROM
+
+Text uses a built-in font unless a real Apple IIe character generator ROM is
+found as `video.rom` (same places as `apple2e.rom`): 4 KB, or the 8 KB
+341-0161 with the US set in its upper half. It is not included in the
+repository.
+
 ### Disks
 
 The Disk II needs its 256-byte boot ROM (341-0027) as `disk2.rom`, looked up
