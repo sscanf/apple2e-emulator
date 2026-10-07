@@ -43,7 +43,8 @@ void usage(const char* argv0) {
               << "                      needs disk2.rom (Disk II boot ROM), looked up like the ROM\n"
               << "  --green             start with a green-phosphor monitor (toggle with Cmd+G)\n"
               << "  --headless FRAMES   run without a window and print the text screen\n"
-              << "  --type TEXT         type TEXT one second after boot (newlines become RETURN)\n"
+              << "  --type TEXT         type TEXT one second after boot (newlines become RETURN,\n"
+              << "                      \\x10 pauses half a second)\n"
               << "  --type-delay FRAMES frames to wait before typing (default 60; 60 per second)\n"
               << "  --screenshot FILE   with --headless, also save the final frame as BMP\n";
 }

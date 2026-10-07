@@ -30,9 +30,18 @@ void KeyboardController::queueText(const std::string& text) {
 }
 
 void KeyboardController::update() {
+    if (m_pauseFrames > 0) {
+        m_pauseFrames--;
+        return;
+    }
     if (!m_strobe && !m_pending.empty()) {
-        press(m_pending.front());
+        uint8_t ch = m_pending.front();
         m_pending.pop_front();
+        if (ch == kPauseChar) {
+            m_pauseFrames = kPauseFrames;
+        } else {
+            press(ch);
+        }
     }
 }
 

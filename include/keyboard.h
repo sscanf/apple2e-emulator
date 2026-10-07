@@ -18,6 +18,9 @@ public:
     void handleEvent(const SDL_Event& event);
 
     // Queue text to be typed (paste / scripted input); '\n' becomes RETURN
+    // and kPauseChar waits half a second before typing on (for scripts that
+    // must wait for a program to load)
+    static constexpr uint8_t kPauseChar = 0x10;
     void queueText(const std::string& text);
     // Feeds the next queued character once software has consumed the last one
     void update();
@@ -41,6 +44,8 @@ private:
     bool m_openApple = false;
     bool m_solidApple = false;
     std::deque<uint8_t> m_pending;
+    static constexpr int kPauseFrames = 30;
+    int m_pauseFrames = 0;
 };
 
 } // namespace apple2e
