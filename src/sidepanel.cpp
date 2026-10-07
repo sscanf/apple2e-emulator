@@ -48,8 +48,8 @@ void drawText(SDL_Renderer* r, int x, int y, const std::string& text, SDL_Color 
     for (char ch : text) {
         auto code = static_cast<unsigned char>(ch);
         if (code >= 0x20 && code < 0x80) {
-            for (int row = 0; row < 7; row++) {
-                uint8_t bits = kFont[code - 0x20][row];
+            for (int row = 0; row < 8; row++) {
+                uint8_t bits = glyphRow(code, row);
                 for (int col = 0; col < 5; col++) {
                     if (bits & (0x10 >> col)) dots.push_back({x + col, y + row, 1, 1});
                 }

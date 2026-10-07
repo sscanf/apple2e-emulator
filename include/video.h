@@ -26,6 +26,10 @@ public:
 
     bool init(SDL_Renderer* renderer);
 
+    // Use a real Apple IIe character generator ROM instead of the built-in
+    // font: 4 KB, or 8 KB with the US set in the upper half (341-0161)
+    bool loadCharacterRom(const std::string& path);
+
     // Monochrome (green phosphor) monitor instead of a colour one
     bool monochrome() const { return m_monochrome; }
     void setMonochrome(bool on) { m_monochrome = on; }
@@ -61,6 +65,10 @@ private:
     uint32_t m_frameCount = 0;
     bool m_flashInverse = false;
     bool m_monochrome = false;
+
+    // Glyphs from the character ROM for ASCII $20-$7F: 8 rows of 7 dots, bit 6 leftmost
+    bool m_hasCharRom = false;
+    std::array<std::array<uint8_t, 8>, 96> m_romGlyphs{};
 };
 
 } // namespace apple2e

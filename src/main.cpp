@@ -11,6 +11,7 @@ namespace {
 
 constexpr const char* kDefaultRom = "apple2e.rom";
 constexpr const char* kDiskRom = "disk2.rom";
+constexpr const char* kVideoRom = "video.rom";  // optional character generator
 
 constexpr const char* kSoundsDir = "sounds";              // your own recordings (not in git)
 constexpr const char* kBundledSoundsDir = "assets/sounds"; // shipped with the repository
@@ -95,6 +96,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     emulator.setMonochrome(green);
+    if (std::string videoRom = findFile(kVideoRom); !videoRom.empty()) emulator.loadCharacterRom(videoRom);
     for (int drive = 0; drive < 2; drive++) {
         if (diskPaths[drive].empty()) continue;
         std::string error = emulator.insertDisk(drive, diskPaths[drive]);
