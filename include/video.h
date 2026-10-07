@@ -12,7 +12,8 @@ class Memory;
 struct SoftSwitches;
 
 // Generates the Apple IIe display from video memory and the IOU switches:
-// 40/80-column text, lo-res and hi-res, mixed mode. On a colour monitor
+// 40/80-column text, lo-res and hi-res and their double (80-column) variants,
+// mixed mode. On a colour monitor
 // hi-res shows NTSC artifact colour; on a monochrome one every dot is visible
 // and lo-res colours appear as dot patterns, as on the real hardware.
 class VideoController {
@@ -45,6 +46,8 @@ private:
     void drawTextRow(int row, uint16_t base);
     void drawLoresRow(int row, uint16_t base);
     void drawHiresLine(int y, uint16_t base);
+    void drawDoubleLoresRow(int row, uint16_t base);
+    void drawDoubleHiresLine(int y, uint16_t base);
     void drawGlyph(int x, int y, int dotWidth, uint8_t ch);
     uint32_t foreground() const;
 

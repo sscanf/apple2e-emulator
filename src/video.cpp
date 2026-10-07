@@ -83,10 +83,20 @@ void VideoController::renderFrame() {
 
     for (int row = 0; row < 24; row++) {
         bool textRow = m_sw.text || (m_sw.mixed && row >= 20);
+        // Double-width graphics: DHIRES (AN3 off) together with 80COL
+        bool doubleWidth = m_sw.dhires && m_sw.col80;
         if (textRow) {
             drawTextRow(row, textBase);
         } else if (m_sw.hires) {
-            for (int y = row * 8; y < row * 8 + 8; y++) drawHiresLine(y, hiresBase);
+            for (int y = row * 8; y < row * 8 + 8; y++) {
+                if (doubleWidth) {
+                    drawDoubleHiresLine(y, hiresBase);
+                } else {
+                    drawHiresLine(y, hiresBase);
+                }
+            }
+        } else if (doubleWidth) {
+            drawDoubleLoresRow(row, textBase);
         } else {
             drawLoresRow(row, textBase);
         }
@@ -210,6 +220,62 @@ void VideoController::drawHiresLine(int y, uint16_t base) {
         }
         *out++ = color;
         *out++ = color;
+    }
+}
+
+// Double lo-res: 80 blocks per row, aux bytes at even and main bytes at odd
+// positions. Aux colours are stored rotated one bit to the right relative to
+// main ones, because the aux half of the pair is shifted out first.
+void VideoController::drawDoubleLoresRow(int row, uint16_t base) {
+    uint16_t addr = base + textRowOffset(row);
+    const uint8_t* main = m_memory.mainRam();
+    const uint8_t* aux = m_memory.auxRam();
+    uint32_t fg = foreground();
+
+    for (int block = 0; block < 80; block++) {
+        bool fromAux = (block & 1) == 0;
+        uint8_t byte = fromAux ? aux[addr + block / 2] : main[addr + block / 2];
+        for (int y = 0; y < 8; y++) {
+            uint8_t nibble = y < 4 ? (byte & 0x0F) : (byte >> 4);
+            if (fromAux) nibble = ((nibble << 1) | (nibble >> 3)) & 0x0F;
+            uint32_t* out = line(row * 8 + y) + block * 7;
+            for (int k = 0; k < 7; k++) {
+                int x = block * 7 + k;
+                if (m_monochrome) {
+                    *out++ = (nibble >> (x & 3)) & 1 ? fg : kBlack;
+                } else {
+                    *out++ = kPalette[nibble];
+                }
+            }
+        }
+    }
+}
+
+// Double hi-res: 560 dots per line, the 7 low bits of an aux byte followed by
+// those of the main byte at the same address (bit 7 is unused). In colour each
+// group of four dots is one of the 16 lo-res colours.
+void VideoController::drawDoubleHiresLine(int y, uint16_t base) {
+    uint16_t addr = base + hiresLineOffset(y);
+    const uint8_t* main = m_memory.mainRam();
+    const uint8_t* aux = m_memory.auxRam();
+
+    std::array<bool, kWidth> on{};
+    for (int col = 0; col < 40; col++) {
+        for (int bit = 0; bit < 7; bit++) {
+            on[col * 14 + bit] = aux[addr + col] & (1 << bit);
+            on[col * 14 + 7 + bit] = main[addr + col] & (1 << bit);
+        }
+    }
+
+    uint32_t* out = line(y);
+    if (m_monochrome) {
+        uint32_t fg = foreground();
+        for (int x = 0; x < kWidth; x++) out[x] = on[x] ? fg : kBlack;
+        return;
+    }
+    for (int x = 0; x < kWidth; x += 4) {
+        int color = on[x] | (on[x + 1] << 1) | (on[x + 2] << 2) | (on[x + 3] << 3);
+        std::fill(out + x, out + x + 4, kPalette[color]);
     }
 }
 
