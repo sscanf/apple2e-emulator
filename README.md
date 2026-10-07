@@ -4,9 +4,11 @@ Enhanced Apple IIe emulator in C++20 with SDL2.
 
 - 65C02 CPU, validated against Klaus Dormann's functional test suites
 - 64 KB main + 64 KB auxiliary RAM, language card, IIe MMU soft switches
-- 40/80-column text, lo-res, hi-res (NTSC artifact colour), mixed mode
+- 40/80-column text, lo-res, hi-res, double lo-res and double hi-res, mixed
+  mode, NTSC artifact colour
 - Keyboard, Open/Solid Apple buttons, 1-bit speaker
-- Microsoft SoftCard (Z80) in slot 4 for CP/M; the Z80 passes ZEXDOC and ZEXALL
+- AppleMouse card in slot 4 (works with Apple II DeskTop)
+- Microsoft SoftCard (Z80) in slot 5 for CP/M; the Z80 passes ZEXDOC and ZEXALL
 - Paddles/joystick via the mouse or a game controller
 - Colour or green-phosphor monitor (switch in the side panel, Cmd+G or `--green`)
 - Disk II controller in slot 6 with two drives (.dsk/.do/.po/.nib, read and write),
@@ -46,6 +48,16 @@ also works from inside `build/`.
 | Caps Lock | Toggle Apple CAPS LOCK (on by default) |
 | Left / Right Alt | Open Apple / Solid Apple (buttons 0 / 1) |
 
+### Mouse
+
+An AppleMouse card sits in slot 4. Once a program switches the mouse on (for
+example Apple II DeskTop), the Mac pointer over the Apple screen moves the
+Apple's mouse cursor and the left button is the mouse button; the Mac
+pointer is hidden there so only the Apple's cursor shows. The card uses a
+small built-in firmware stub instead of Apple's ROM, implementing the
+documented calls (SETMOUSE, READMOUSE, CLAMPMOUSE, ...) including the
+movement, button and VBL interrupt modes.
+
 ### Paddles and joystick
 
 - **Mouse** over the Apple screen: X is paddle 0, Y is paddle 1; left and
@@ -54,7 +66,8 @@ also works from inside `build/`.
   right stick paddles 2/3; A, B and X are buttons 0, 1 and 2.
 
 Whichever moved last sets the position. Try it in BASIC with
-`PRINT PDL(0), PDL(1)`.
+`PRINT PDL(0), PDL(1)`. While a program uses the mouse card, the mouse drives
+the card instead.
 
 ### Disks
 
@@ -76,7 +89,7 @@ still decodes, so a disk that fails to decode is never overwritten.
 
 ### CP/M
 
-A Microsoft SoftCard is always installed in slot 4; insert a SoftCard CP/M
+A Microsoft SoftCard is always installed in slot 5; insert a SoftCard CP/M
 disk in drive 1 and the machine boots CP/M (56K 2.20B and 60K 2.23 tested,
 with DIR, STAT, PIP, Turbo Pascal and WordStar). Programs that need an
 80-column screen use the IIe's built-in 80-column firmware.
