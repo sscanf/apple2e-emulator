@@ -14,3 +14,7 @@ build/
 
 # Drive sound samples (third-party recordings, not redistributed)
 sounds/
+
+# Editor tooling (clangd)
+compile_commands.json
+.cache/
