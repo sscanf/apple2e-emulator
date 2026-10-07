@@ -12,7 +12,8 @@ namespace {
 constexpr const char* kDefaultRom = "apple2e.rom";
 constexpr const char* kDiskRom = "disk2.rom";
 
-constexpr const char* kSoundsDir = "sounds";
+constexpr const char* kSoundsDir = "sounds";              // your own recordings (not in git)
+constexpr const char* kBundledSoundsDir = "assets/sounds"; // shipped with the repository
 
 // Look for a support file or folder in the current directory, next to the
 // executable, and one level above it (the project root for build/ trees).
@@ -110,6 +111,7 @@ int main(int argc, char* argv[]) {
         }
     } else {
         std::string soundsDir = findFile(kSoundsDir);
+        if (soundsDir.empty()) soundsDir = findFile(kBundledSoundsDir);
         if (!soundsDir.empty()) emulator.loadDriveSounds(soundsDir);
         emulator.run();
     }
