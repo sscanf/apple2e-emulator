@@ -7,7 +7,8 @@ namespace apple2e {
 
 namespace {
 constexpr int kDiskSlot = 6;
-constexpr int kSoftCardSlot = 4;
+constexpr int kMouseSlot = 4;
+constexpr int kSoftCardSlot = 5;
 constexpr int kScreenWidth = VideoController::kWidth;
 constexpr int kScreenHeight =
     VideoController::kHeight * 2; // scanlines doubled for 4:3
@@ -18,10 +19,14 @@ Apple2e::Apple2e()
     : m_memory(m_switches),
       m_io(m_switches, m_keyboard, m_audio, m_gameIO, m_cycles),
       m_cpu(m_memory), m_video(m_memory, m_switches), m_softCard(m_memory),
+      m_mouseCard(m_memory, kMouseSlot),
       m_disk2(m_cycles) {
   m_memory.setIO(&m_io);
   m_memory.setCard(kSoftCardSlot, &m_softCard);
   m_io.setCard(kSoftCardSlot, &m_softCard);
+  m_memory.setCard(kMouseSlot, &m_mouseCard);
+  m_io.setCard(kMouseSlot, &m_mouseCard);
+  m_mouseCard.setIrqCallback([this](bool asserted) { m_cpu.setIrqLine(asserted); });
 }
 
 Apple2e::~Apple2e() {
@@ -141,6 +146,7 @@ void Apple2e::reset(bool coldStart) {
   }
   m_switches.resetMMU();
   m_softCard.reset();
+  m_mouseCard.reset();
   m_cpu.reset();
 }
 
@@ -156,6 +162,7 @@ void Apple2e::runFrame() {
   }
   m_keyboard.update();
 
+  m_mouseCard.vblank();
   uint64_t frameEnd = m_cycles + kCyclesPerFrame;
   while (m_cycles < frameEnd) {
     // While the SoftCard's Z80 owns the bus the 6502 is halted
@@ -212,7 +219,18 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
     }
   }
 
-  m_gameIO.handleEvent(event, {0, 0, kScreenWidth, kScreenHeight});
+  // Once software enables the mouse card, the host mouse drives it (and the
+  // pointer is hidden over the screen, the Apple draws its own cursor);
+  // otherwise it acts as paddles/buttons
+  const SDL_Rect screen = {0, 0, kScreenWidth, kScreenHeight};
+  if (event.type == SDL_MOUSEMOTION) {
+    SDL_Point p = {event.motion.x, event.motion.y};
+    bool overScreen = SDL_PointInRect(&p, &screen);
+    SDL_ShowCursor(m_mouseCard.enabled() && overScreen ? SDL_DISABLE : SDL_ENABLE);
+  }
+  if (m_mouseCard.handleEvent(event, screen))
+    return;
+  m_gameIO.handleEvent(event, screen);
   if (m_sidePanel->handleEvent(event, m_renderer))
     return;
   m_keyboard.handleEvent(event);

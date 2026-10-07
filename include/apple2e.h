@@ -10,6 +10,7 @@
 #include "io.h"
 #include "keyboard.h"
 #include "memory.h"
+#include "mousecard.h"
 #include "video.h"
 
 #include <SDL.h>
@@ -71,6 +72,7 @@ private:
     CPU m_cpu;
     VideoController m_video;
     SoftCard m_softCard;
+    MouseCard m_mouseCard;
     Disk2Controller m_disk2;
     bool m_hasDisk2 = false;
     std::unique_ptr<SidePanel> m_sidePanel;
