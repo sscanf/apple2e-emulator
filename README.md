@@ -88,12 +88,12 @@ keyboard (for example CTRL-K types `[`); its CONFIGIO utility changes that.
 
 The drive plays its mechanical noises: the motor while the disk spins, a
 click on each head step and the grind of the head hitting the track 0 stop.
-The repository includes sounds cut from a real Apple IIe recording (see
-[assets/sounds](assets/sounds/README.md) for credits).
+The repository includes recordings of a real Disk II (see
+[assets/sounds](assets/sounds/README.md) about their origin).
 
 To use your own, put them in a `sounds/` folder (same places as the ROMs; it is
-ignored by git and takes priority): `motor.wav`, `step1.wav`, `step2.wav` and
-`grind.wav`, as 16-bit PCM WAV.
+ignored by git and takes priority), either with the same file names or as
+`motor.wav`, `step1.wav`, `step2.wav` and `grind.wav` (16-bit PCM WAV).
 
 ### Headless mode
 
@@ -125,5 +125,5 @@ ctest --test-dir build -j4   # the Z80 tests take about 45 s each
 
 The emulator source code is released under the [MIT License](LICENSE).
 Apple ROM images and disk images are not part of this repository and are not
-covered by it. The drive sounds in `assets/sounds` are by SavageFX under
-CC BY 4.0 (see [their credits](assets/sounds/README.md)).
+covered by it, and neither are the drive recordings in `assets/sounds` (see
+[their notes](assets/sounds/README.md)).
