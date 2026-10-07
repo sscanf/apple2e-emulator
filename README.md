@@ -6,6 +6,7 @@ Enhanced Apple IIe emulator in C++20 with SDL2.
 - 64 KB main + 64 KB auxiliary RAM, language card, IIe MMU soft switches
 - 40/80-column text, lo-res, hi-res (NTSC artifact colour), mixed mode
 - Keyboard, Open/Solid Apple buttons, 1-bit speaker
+- Microsoft SoftCard (Z80) in slot 4 for CP/M; the Z80 passes ZEXDOC and ZEXALL
 - Paddles/joystick via the mouse or a game controller
 - Colour or green-phosphor monitor (switch in the side panel, Cmd+G or `--green`)
 - Disk II controller in slot 6 with two drives (.dsk/.do/.po/.nib, read and write),
@@ -73,6 +74,16 @@ emulator quits (a `*` before the name means unsaved changes). Images whose file
 is read-only are write-protected. Sector images are saved only if every sector
 still decodes, so a disk that fails to decode is never overwritten.
 
+### CP/M
+
+A Microsoft SoftCard is always installed in slot 4; insert a SoftCard CP/M
+disk in drive 1 and the machine boots CP/M (56K 2.20B and 60K 2.23 tested,
+with DIR, STAT, PIP, Turbo Pascal and WordStar). Programs that need an
+80-column screen use the IIe's built-in 80-column firmware.
+
+Note that SoftCard CP/M translates some control keys for the Apple II+
+keyboard (for example CTRL-K types `[`); its CONFIGIO utility changes that.
+
 ### Drive sounds
 
 If a `sounds/` folder is found (same places as the ROMs), the drive plays its
@@ -92,13 +103,18 @@ prints the text screen and optionally saves a screenshot.
 ./build/apple2e_emulator --headless 1500 --disk1 dos33.dsk --type-delay 700 --type $'CATALOG\n'
 ```
 
+In `--type` text, `\x10` waits half a second before typing on, for programs
+that discard keys pressed while they load.
+
 ## CPU tests
 
 Download `6502_functional_test.bin` and `65C02_extended_opcodes_test.bin` from
-[Klaus2m5/6502_65C02_functional_tests](https://github.com/Klaus2m5/6502_65C02_functional_tests/tree/master/bin_files), then:
+[Klaus2m5/6502_65C02_functional_tests](https://github.com/Klaus2m5/6502_65C02_functional_tests/tree/master/bin_files),
+and `zexdoc.com` and `zexall.com` from
+[anotherlin/z80emu](https://github.com/anotherlin/z80emu/tree/master/testfiles), then:
 
 ```sh
-cmake -S . -B build -DKLAUS_TESTS_DIR=/path/to/bin_files
+cmake -S . -B build -DKLAUS_TESTS_DIR=/path/to/bin_files -DZEX_TESTS_DIR=/path/to/zex
 cmake --build build -j
-ctest --test-dir build
+ctest --test-dir build -j4   # the Z80 tests take about 45 s each
 ```

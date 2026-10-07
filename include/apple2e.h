@@ -4,6 +4,7 @@
 #include "cpu.h"
 #include "disk2.h"
 #include "sidepanel.h"
+#include "softcard.h"
 #include "drivesounds.h"
 #include "gameio.h"
 #include "io.h"
@@ -69,6 +70,7 @@ private:
     IOController m_io;
     CPU m_cpu;
     VideoController m_video;
+    SoftCard m_softCard;
     Disk2Controller m_disk2;
     bool m_hasDisk2 = false;
     std::unique_ptr<SidePanel> m_sidePanel;

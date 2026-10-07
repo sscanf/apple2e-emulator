@@ -102,6 +102,9 @@ void Memory::write(uint16_t addr, uint8_t val) {
     } else if (addr < 0xC100) {
         if (m_io) m_io->write(addr, val);
     } else if (addr < 0xD000) {
+        uint8_t slot = (addr >> 8) & 0x0F;
+        bool internal = m_sw.intcxrom || (slot == 3 && !m_sw.slotc3rom);
+        if (addr < 0xC800 && !internal && m_cards[slot]) m_cards[slot]->romWrite(addr & 0xFF, val);
         if (addr == 0xCFFF) m_sw.intc8rom = false;
     } else if (m_sw.lcWriteRam) {
         (m_sw.altzp ? m_aux : m_main)[lcOffset(addr)] = val;
