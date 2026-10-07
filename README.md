@@ -86,12 +86,14 @@ keyboard (for example CTRL-K types `[`); its CONFIGIO utility changes that.
 
 ### Drive sounds
 
-If a `sounds/` folder is found (same places as the ROMs), the drive plays its
-mechanical noises: `Spin_Sound.wav` loops while the disk spins,
-`Read_1_Sound.wav`/`Read_2_Sound.wav` click on each head step, and
-`Grunt_Grind_1_Sound.wav`/`Grunt_Grind_2_Sound.wav` play when the head hits the
-track 0 stop. They must be 16-bit PCM WAV files. The samples are not included
-in the repository.
+The drive plays its mechanical noises: the motor while the disk spins, a
+click on each head step and the grind of the head hitting the track 0 stop.
+The repository includes sounds cut from a real Apple IIe recording (see
+[assets/sounds](assets/sounds/README.md) for credits).
+
+To use your own, put them in a `sounds/` folder (same places as the ROMs; it is
+ignored by git and takes priority): `motor.wav`, `step1.wav`, `step2.wav` and
+`grind.wav`, as 16-bit PCM WAV.
 
 ### Headless mode
 
@@ -122,5 +124,6 @@ ctest --test-dir build -j4   # the Z80 tests take about 45 s each
 ## License
 
 The emulator source code is released under the [MIT License](LICENSE).
-Apple ROM images, disk images and drive sound recordings are not part of this
-repository and are not covered by it.
+Apple ROM images and disk images are not part of this repository and are not
+covered by it. The drive sounds in `assets/sounds` are by SavageFX under
+CC BY 4.0 (see [their credits](assets/sounds/README.md)).

@@ -10,11 +10,26 @@ namespace apple2e {
 
 namespace {
 
-// The recordings peak at about 0.016 (motor), 0.05 (steps) and 0.55 (grind);
-// these gains balance them against the speaker, which peaks at 0.25
-constexpr float kSpinGain = 4.0f;
-constexpr float kStepGain = 3.0f;
-constexpr float kGrindGain = 0.35f;
+// A set of drive recordings and the gains that balance them against the
+// speaker (which peaks at 0.25). The first set whose motor file exists in the
+// folder is used.
+struct SoundSet {
+    const char* motor;
+    const char* steps[2];
+    const char* grinds[2];
+    float motorGain;
+    float stepGain;
+    float grindGain;
+};
+
+constexpr SoundSet kSoundSets[] = {
+    // Bundled in assets/sounds: cut from SavageFX's Apple IIe boot recording
+    {"motor.wav", {"step1.wav", "step2.wav"}, {"grind.wav", nullptr}, 0.74f, 0.74f, 0.74f},
+    // Recordings named as in the Apple 2 Disk Drive Sound Simulator; they peak
+    // at about 0.016 (motor), 0.05 (steps) and 0.55 (grind)
+    {"Spin_Sound.wav", {"Read_1_Sound.wav", "Read_2_Sound.wav"},
+     {"Grunt_Grind_1_Sound.wav", "Grunt_Grind_2_Sound.wav"}, 4.0f, 3.0f, 0.35f},
+};
 
 constexpr float kSpinFadePerSample = 1.0f / 1500;  // ~30 ms fade in/out
 constexpr size_t kMaxVoices = 8;
@@ -72,15 +87,22 @@ std::vector<float> makeLoop(std::vector<float> s, size_t fade) {
 bool DriveSounds::load(const std::string& directory, int sampleRate) {
     namespace fs = std::filesystem;
     fs::path dir(directory);
+    std::error_code ec;
 
-    m_spin = makeLoop(loadWav(dir / "Spin_Sound.wav", sampleRate, kSpinGain), sampleRate / 20);
-    for (const char* name : {"Read_1_Sound.wav", "Read_2_Sound.wav"}) {
-        auto s = loadWav(dir / name, sampleRate, kStepGain);
-        if (!s.empty()) m_steps.push_back(std::move(s));
-    }
-    for (const char* name : {"Grunt_Grind_1_Sound.wav", "Grunt_Grind_2_Sound.wav"}) {
-        auto s = loadWav(dir / name, sampleRate, kGrindGain);
-        if (!s.empty()) m_grinds.push_back(std::move(s));
+    for (const SoundSet& set : kSoundSets) {
+        if (!fs::exists(dir / set.motor, ec)) continue;
+
+        m_spin = makeLoop(loadWav(dir / set.motor, sampleRate, set.motorGain), sampleRate / 20);
+        for (const char* name : set.steps) {
+            auto sample = loadWav(dir / name, sampleRate, set.stepGain);
+            if (!sample.empty()) m_steps.push_back(std::move(sample));
+        }
+        for (const char* name : set.grinds) {
+            if (!name) continue;
+            auto sample = loadWav(dir / name, sampleRate, set.grindGain);
+            if (!sample.empty()) m_grinds.push_back(std::move(sample));
+        }
+        break;
     }
 
     bool any = !m_spin.empty() || !m_steps.empty() || !m_grinds.empty();
