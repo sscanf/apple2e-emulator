@@ -40,7 +40,6 @@ private:
     uint8_t m_latch = 0;
     bool m_strobe = false;
     int m_keysHeld = 0;
-    bool m_capsLock = true;  // Apple CAPS LOCK, on by default as BASIC wants
     bool m_openApple = false;
     bool m_solidApple = false;
     std::deque<uint8_t> m_pending;
