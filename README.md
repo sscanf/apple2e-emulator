@@ -118,3 +118,9 @@ cmake -S . -B build -DKLAUS_TESTS_DIR=/path/to/bin_files -DZEX_TESTS_DIR=/path/t
 cmake --build build -j
 ctest --test-dir build -j4   # the Z80 tests take about 45 s each
 ```
+
+## License
+
+The emulator source code is released under the [MIT License](LICENSE).
+Apple ROM images, disk images and drive sound recordings are not part of this
+repository and are not covered by it.
