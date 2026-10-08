@@ -42,9 +42,9 @@ public:
     // Text page contents as plain ASCII, 24 lines (for headless runs)
     std::string textDump() const;
 
-    // Copy the framebuffer into the top-left of an ARGB8888 surface,
-    // scanlines doubled as displayed
-    void copyToSurface(SDL_Surface* surface) const;
+    // Copy the framebuffer into an ARGB8888 surface at (x, y), scanlines
+    // doubled as displayed
+    void copyToSurface(SDL_Surface* surface, int x, int y) const;
 
 private:
     void drawTextRow(int row, uint16_t base);
