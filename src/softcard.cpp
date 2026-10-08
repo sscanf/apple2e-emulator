@@ -1,4 +1,5 @@
 #include "softcard.h"
+#include "state.h"
 
 namespace apple2e {
 
@@ -26,6 +27,18 @@ void SoftCard::reset() {
     m_z80Active = false;
     m_halfCycle = 0;
     m_z80.reset();
+}
+
+void SoftCard::saveState(StateWriter& w) const {
+    w.put(m_z80Active);
+    w.put(m_halfCycle);
+    m_z80.saveState(w);
+}
+
+void SoftCard::loadState(StateReader& r) {
+    r.get(m_z80Active);
+    r.get(m_halfCycle);
+    m_z80.loadState(r);
 }
 
 } // namespace apple2e

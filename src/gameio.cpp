@@ -1,4 +1,5 @@
 #include "gameio.h"
+#include "state.h"
 
 #include <algorithm>
 #include <iostream>
@@ -94,6 +95,16 @@ void GameIO::handleEvent(const SDL_Event& event, const SDL_Rect& screen) {
         default:
             break;
     }
+}
+
+void GameIO::saveState(StateWriter& w) const {
+    w.put(m_paddles);
+    w.put(m_triggerCycle);
+}
+
+void GameIO::loadState(StateReader& r) {
+    r.get(m_paddles);
+    r.get(m_triggerCycle);
 }
 
 } // namespace apple2e

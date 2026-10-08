@@ -7,12 +7,17 @@
 
 namespace apple2e {
 
-std::string Settings::defaultPath() {
+std::string Settings::folder() {
     char* dir = SDL_GetPrefPath("apple2e-emulator", "Apple IIe");
     if (!dir) return {};
-    std::string path = std::string(dir) + "settings.ini";
+    std::string path(dir);
     SDL_free(dir);
     return path;
+}
+
+std::string Settings::defaultPath() {
+    std::string dir = folder();
+    return dir.empty() ? dir : dir + "settings.ini";
 }
 
 void Settings::load(const std::string& path) {

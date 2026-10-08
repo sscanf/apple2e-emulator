@@ -1,4 +1,5 @@
 #include "cpu.h"
+#include "state.h"
 
 namespace apple2e {
 
@@ -410,5 +411,19 @@ void CPU::executeRockwell(uint8_t op) {
 
 #undef ALU_GROUP
 #undef SHIFT_GROUP
+
+// ============================================================
+// Save states
+// ============================================================
+
+void CPU::saveState(StateWriter& w) const {
+    w.put(m_a); w.put(m_x); w.put(m_y); w.put(m_sp); w.put(m_p); w.put(m_pc);
+    w.put(m_irqLine); w.put(m_nmiPending);
+}
+
+void CPU::loadState(StateReader& r) {
+    r.get(m_a); r.get(m_x); r.get(m_y); r.get(m_sp); r.get(m_p); r.get(m_pc);
+    r.get(m_irqLine); r.get(m_nmiPending);
+}
 
 } // namespace apple2e

@@ -43,6 +43,7 @@ also works from inside `build/`.
 | Cmd+1 / Cmd+2 | Insert a disk in drive 1 / 2 |
 | Cmd+D | Drive sounds on/off |
 | Cmd+G | Colour / green monitor |
+| Cmd+S / Cmd+L | Save / load state (quick slot) |
 | Cmd+V | Paste text |
 | Cmd+Q | Quit |
 | Caps Lock | Upper / lower case, as on the Mac (Applesoft accepts lowercase commands) |
@@ -68,6 +69,23 @@ movement, button and VBL interrupt modes.
 Whichever moved last sets the position. Try it in BASIC with
 `PRINT PDL(0), PDL(1)`. While a program uses the mouse card, the mouse drives
 the card instead.
+
+### Save states
+
+A save state captures the whole machine: both CPUs (6502 and the SoftCard's
+Z80), all 128 KB of RAM and the soft switches, keyboard, paddles, mouse card,
+and both drives with the head position and the full contents of the disks,
+so what a program holds in memory always matches its disks. Loading one
+continues exactly where it was saved; disks with unsaved changes are written
+to their files first, and a damaged file is rejected without touching the
+running machine.
+
+- **Cmd+S** / **Cmd+L**, or the *Save state* / *Load state* buttons, use a
+  quick slot (`quicksave.a2state` in the settings folder).
+- `--load-state FILE` starts from a state; with `--headless`,
+  `--save-state FILE` saves one at the end.
+
+States are tied to the emulator build that wrote them (format version 1).
 
 ### Settings
 

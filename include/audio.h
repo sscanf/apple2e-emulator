@@ -27,6 +27,10 @@ public:
     // Render all samples up to `cycle` and queue them for playback
     void endFrame(uint64_t cycle);
 
+    // Restart sample timing at `cycle` (after the cycle counter jumps, e.g.
+    // when a save state is loaded)
+    void resync(uint64_t cycle);
+
 private:
     SDL_AudioDeviceID m_device = 0;
     int m_sampleRate = 0;

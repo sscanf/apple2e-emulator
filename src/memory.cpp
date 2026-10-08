@@ -1,4 +1,5 @@
 #include "memory.h"
+#include "state.h"
 #include "io.h"
 
 #include <fstream>
@@ -109,6 +110,16 @@ void Memory::write(uint16_t addr, uint8_t val) {
     } else if (m_sw.lcWriteRam) {
         (m_sw.altzp ? m_aux : m_main)[lcOffset(addr)] = val;
     }
+}
+
+void Memory::saveState(StateWriter& w) const {
+    w.putBytes(m_main.data(), m_main.size());
+    w.putBytes(m_aux.data(), m_aux.size());
+}
+
+void Memory::loadState(StateReader& r) {
+    r.getBytes(m_main.data(), m_main.size());
+    r.getBytes(m_aux.data(), m_aux.size());
 }
 
 } // namespace apple2e

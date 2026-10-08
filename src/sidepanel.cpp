@@ -130,6 +130,10 @@ SDL_Rect SidePanel::monitorSwitchRect() const {
     return {m_x + 8, m_height - 86, kBodyWidth, 14};
 }
 
+SDL_Rect SidePanel::stateButtonRect(int index) const {
+    return {m_x + 8 + index * 76, m_height - 110, 68, 15};
+}
+
 SDL_Rect SidePanel::driveRect(int drive) const {
     // Body plus the file name lines underneath
     return {m_x + 8, kDriveTop + drive * kDriveSpacing, kBodyWidth, kBodyHeight + 30};
@@ -145,12 +149,12 @@ int SidePanel::driveAt(int x, int y) const {
 }
 
 void SidePanel::insert(int drive, const std::string& path) {
-    m_message = m_controller->insert(drive, path);
+    showMessage(m_controller->insert(drive, path), true);
     m_lastDirectory = std::filesystem::path(path).parent_path().string();
 }
 
 void SidePanel::eject(int drive) {
-    m_message = m_controller->eject(drive);
+    showMessage(m_controller->eject(drive), true);
 }
 
 void SidePanel::chooseDisk(int drive) {
@@ -179,6 +183,13 @@ bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
         SDL_Rect sw = monitorSwitchRect();
         if (SDL_PointInRect(&p, &sw)) {
             m_video.setMonochrome(!m_video.monochrome());
+            return true;
+        }
+        for (int i = 0; i < 2; i++) {
+            SDL_Rect button = stateButtonRect(i);
+            if (!SDL_PointInRect(&p, &button)) continue;
+            const auto& action = i == 0 ? m_onSaveState : m_onLoadState;
+            if (action) action();
             return true;
         }
     }
@@ -274,9 +285,26 @@ void SidePanel::drawMonitorSwitch(SDL_Renderer* r) const {
     drawText(r, x + 112, y + 4, "Cmd+G", kDimText);
 }
 
+void SidePanel::drawStateButtons(SDL_Renderer* r) const {
+    const char* labels[2] = {"Save state", "Load state"};
+    for (int i = 0; i < 2; i++) {
+        SDL_Rect b = stateButtonRect(i);
+        fill(r, b, kBodyEdge);
+        fill(r, {b.x + 1, b.y + 1, b.w - 2, b.h - 2}, kSwitchTrack);
+        drawText(r, b.x + 4, b.y + 4, labels[i], kText);
+    }
+}
+
 void SidePanel::draw(SDL_Renderer* r) const {
     fill(r, {m_x, 0, kWidth, m_height}, kPanelBg);
     drawMonitorSwitch(r);
+    drawStateButtons(r);
+
+    int y = m_height - 64;
+    for (const auto& line : wrap(m_message, kNameChars - 2, 2)) {
+        drawText(r, m_x + 8, y, line, m_messageIsError ? kErrorText : kGreenText);
+        y += 10;
+    }
 
     if (!m_controller) {
         drawText(r, m_x + 8, 16, "No disk2.rom found:", kWarnText);
@@ -286,11 +314,6 @@ void SidePanel::draw(SDL_Renderer* r) const {
 
     for (int d = 0; d < Disk2Controller::kDrives; d++) drawDrive(r, d);
 
-    int y = m_height - 64;
-    for (const auto& line : wrap(m_message, kNameChars - 2, 2)) {
-        drawText(r, m_x + 8, y, line, kErrorText);
-        y += 10;
-    }
     drawText(r, m_x + 8, m_height - 34, "Click: insert disk", kDimText);
     drawText(r, m_x + 8, m_height - 24, "Right-click: eject", kDimText);
     drawText(r, m_x + 8, m_height - 14, "Or drop a file here", kDimText);

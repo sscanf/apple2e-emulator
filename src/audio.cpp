@@ -83,4 +83,9 @@ void AudioController::endFrame(uint64_t cycle) {
     }
 }
 
+void AudioController::resync(uint64_t cycle) {
+    m_toggles.clear();
+    m_nextSampleCycle = static_cast<double>(cycle);
+}
+
 } // namespace apple2e

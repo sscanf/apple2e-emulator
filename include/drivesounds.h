@@ -23,6 +23,7 @@ public:
 
     void setMotor(bool spinning) { m_motorOn = spinning; }
     void trigger(Event event, uint64_t cycle) { m_events.push_back({event, cycle}); }
+    void clearEvents() { m_events.clear(); }
 
     // Add drive sounds to `n` samples whose first sample is at CPU cycle `startCycle`
     void mix(float* buffer, size_t n, double startCycle, double cyclesPerSample);

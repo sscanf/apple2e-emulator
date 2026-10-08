@@ -1,4 +1,5 @@
 #include "z80.h"
+#include "state.h"
 
 #include <utility>
 
@@ -820,6 +821,24 @@ void Z80::execED() {
             }
             break;
     }
+}
+
+// ============================================================
+// Save states
+// ============================================================
+
+void Z80::saveState(StateWriter& w) const {
+    w.put(m_a); w.put(m_f); w.put(m_bc); w.put(m_de); w.put(m_hl);
+    w.put(m_af2); w.put(m_bc2); w.put(m_de2); w.put(m_hl2);
+    w.put(m_ix); w.put(m_iy); w.put(m_sp); w.put(m_pc); w.put(m_wz);
+    w.put(m_i); w.put(m_r); w.put(m_iff1); w.put(m_iff2); w.put(m_im); w.put(m_halted);
+}
+
+void Z80::loadState(StateReader& r) {
+    r.get(m_a); r.get(m_f); r.get(m_bc); r.get(m_de); r.get(m_hl);
+    r.get(m_af2); r.get(m_bc2); r.get(m_de2); r.get(m_hl2);
+    r.get(m_ix); r.get(m_iy); r.get(m_sp); r.get(m_pc); r.get(m_wz);
+    r.get(m_i); r.get(m_r); r.get(m_iff1); r.get(m_iff2); r.get(m_im); r.get(m_halted);
 }
 
 } // namespace apple2e

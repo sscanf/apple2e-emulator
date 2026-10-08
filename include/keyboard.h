@@ -8,6 +8,9 @@
 
 namespace apple2e {
 
+class StateReader;
+class StateWriter;
+
 // Apple IIe keyboard as seen by software: a 7-bit ASCII latch at $C000 whose
 // bit 7 (the strobe) is set when a key is pressed and cleared via $C010
 class KeyboardController {
@@ -33,6 +36,10 @@ public:
     // $C061 / $C062
     bool openApple() const { return m_openApple; }
     bool solidApple() const { return m_solidApple; }
+
+    // Save states (see state.h)
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
 private:
     void press(uint8_t ascii);
