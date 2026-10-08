@@ -69,6 +69,15 @@ Whichever moved last sets the position. Try it in BASIC with
 `PRINT PDL(0), PDL(1)`. While a program uses the mouse card, the mouse drives
 the card instead.
 
+### Settings
+
+The monitor type, drive sounds on/off, the folder the disk dialog opens in
+and the window size and position are restored from the last session. They
+are saved on exit to `settings.ini` in the per-user settings folder
+(`~/Library/Application Support/apple2e-emulator/Apple IIe/` on macOS);
+delete it to go back to the defaults. `--green` overrides the saved monitor
+for that run.
+
 ### Character ROM
 
 Text uses a built-in font unless a real Apple IIe character generator ROM is
