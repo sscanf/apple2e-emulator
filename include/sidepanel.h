@@ -34,8 +34,13 @@ public:
     // Call once per frame: inserts the disk once the file dialog has closed
     void update();
 
-    // Save/load state buttons
-    void setStateActions(std::function<void()> save, std::function<void()> load) {
+    // Choose a save state file to save to / load from (file dialog in the
+    // background, like chooseDisk); the chosen path goes to the state actions
+    void chooseStateFile(bool save);
+
+    // What to do with a chosen save state path
+    void setStateActions(std::function<void(const std::string&)> save,
+                         std::function<void(const std::string&)> load) {
         m_onSaveState = std::move(save);
         m_onLoadState = std::move(load);
     }
@@ -49,6 +54,8 @@ public:
     // Folder the file dialog opens in (remembered between runs)
     const std::string& lastDirectory() const { return m_lastDirectory; }
     void setLastDirectory(const std::string& dir) { m_lastDirectory = dir; }
+    const std::string& lastStateDirectory() const { return m_lastStateDirectory; }
+    void setLastStateDirectory(const std::string& dir) { m_lastStateDirectory = dir; }
 
 private:
     SDL_Rect driveRect(int drive) const;
@@ -70,14 +77,17 @@ private:
     Disk2Controller* m_controller;
     VideoController& m_video;
     std::shared_ptr<DialogResult> m_dialog;  // non-null while a dialog is open
+    enum class DialogPurpose { Disk, SaveState, LoadState };
+    DialogPurpose m_dialogPurpose = DialogPurpose::Disk;
     int m_dialogDrive = 0;
     int m_x;
     int m_height;
     std::string m_lastDirectory;
+    std::string m_lastStateDirectory;
     std::string m_message;  // last status or error, shown at the bottom
     bool m_messageIsError = true;
-    std::function<void()> m_onSaveState;
-    std::function<void()> m_onLoadState;
+    std::function<void(const std::string&)> m_onSaveState;
+    std::function<void(const std::string&)> m_onLoadState;
 };
 
 } // namespace apple2e

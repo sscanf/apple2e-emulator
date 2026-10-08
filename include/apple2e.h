@@ -76,6 +76,9 @@ private:
     void readState(StateReader& r);
     void quickSave();
     void quickLoad();
+    // Save/load to a path, reporting the outcome in the side panel
+    void saveStateTo(const std::string& path);
+    void loadStateFrom(const std::string& path);
     void handleEvent(const SDL_Event& event, bool& running);
 
     // Construction order matters: components reference each other

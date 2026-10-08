@@ -44,6 +44,7 @@ also works from inside `build/`.
 | Cmd+D | Drive sounds on/off |
 | Cmd+G | Colour / green monitor |
 | Cmd+S / Cmd+L | Save / load state (quick slot) |
+| Cmd+Shift+S / Cmd+Shift+L | Save state as / load state from a file |
 | Cmd+V | Paste text |
 | Cmd+Q | Quit |
 | Caps Lock | Upper / lower case, as on the Mac (Applesoft accepts lowercase commands) |
@@ -80,8 +81,12 @@ continues exactly where it was saved; disks with unsaved changes are written
 to their files first, and a damaged file is rejected without touching the
 running machine.
 
-- **Cmd+S** / **Cmd+L**, or the *Save state* / *Load state* buttons, use a
-  quick slot (`quicksave.a2state` in the settings folder).
+- **Cmd+S** / **Cmd+L** use a quick slot (`quicksave.a2state` in the
+  settings folder), without asking.
+- **Cmd+Shift+S** / **Cmd+Shift+L**, or the *Save as...* / *Load...* buttons,
+  open the file dialog to choose any `.a2state` file (the extension is added
+  if missing). The dialog opens in the last folder used, and emulation keeps
+  running while it is open.
 - `--load-state FILE` starts from a state; with `--headless`,
   `--save-state FILE` saves one at the end.
 
@@ -89,8 +94,8 @@ States are tied to the emulator build that wrote them (format version 1).
 
 ### Settings
 
-The monitor type, drive sounds on/off, the folder the disk dialog opens in
-and the window size and position are restored from the last session. They
+The monitor type, drive sounds on/off, the folders the disk and save state
+dialogs open in, and the window size and position are restored from the last session. They
 are saved on exit to `settings.ini` in the per-user settings folder
 (`~/Library/Application Support/apple2e-emulator/Apple IIe/` on macOS);
 delete it to go back to the defaults. `--green` overrides the saved monitor

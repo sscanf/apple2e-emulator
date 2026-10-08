@@ -40,6 +40,7 @@ void Settings::load(const std::string& path) {
         if (key == "monitor") greenMonitor = value == "green";
         else if (key == "drive_sounds") driveSounds = value != "off";
         else if (key == "disk_directory") diskDirectory = value;
+        else if (key == "state_directory") stateDirectory = value;
         else if (key == "window_x") toInt(windowX);
         else if (key == "window_y") toInt(windowY);
         else if (key == "window_width") toInt(windowW);
@@ -52,6 +53,7 @@ bool Settings::save(const std::string& path) const {
     file << "monitor=" << (greenMonitor ? "green" : "color") << '\n'
          << "drive_sounds=" << (driveSounds ? "on" : "off") << '\n'
          << "disk_directory=" << diskDirectory << '\n'
+         << "state_directory=" << stateDirectory << '\n'
          << "window_x=" << windowX << '\n'
          << "window_y=" << windowY << '\n'
          << "window_width=" << windowW << '\n'
