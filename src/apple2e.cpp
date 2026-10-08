@@ -1,6 +1,7 @@
 #include "apple2e.h"
 
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 
@@ -72,7 +73,9 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
 
   m_sidePanel = std::make_unique<SidePanel>(
       m_hasDisk2 ? &m_disk2 : nullptr, m_video, kPanelX, kLogicalHeight);
-  m_sidePanel->setStateActions([this] { quickSave(); }, [this] { quickLoad(); });
+  m_sidePanel->setStateActions(
+      [this](const std::string &path) { saveStateTo(path); },
+      [this](const std::string &path) { loadStateFrom(path); });
 
   if (!headless) {
     m_settingsPath = Settings::defaultPath();
@@ -265,6 +268,20 @@ std::string Apple2e::quickStatePath() {
   return dir.empty() ? dir : dir + "quicksave.a2state";
 }
 
+void Apple2e::saveStateTo(const std::string &path) {
+  std::string error = saveState(path);
+  std::string name = std::filesystem::path(path).filename().string();
+  m_sidePanel->showMessage(error.empty() ? "Saved " + name : error,
+                           !error.empty());
+}
+
+void Apple2e::loadStateFrom(const std::string &path) {
+  std::string error = loadState(path);
+  std::string name = std::filesystem::path(path).filename().string();
+  m_sidePanel->showMessage(error.empty() ? "Loaded " + name : error,
+                           !error.empty());
+}
+
 void Apple2e::quickSave() {
   std::string path = quickStatePath();
   std::string error = path.empty() ? "No settings folder" : saveState(path);
@@ -283,6 +300,7 @@ void Apple2e::applySettings() {
   m_video.setMonochrome(m_settings.greenMonitor);
   m_driveSounds.setEnabled(m_settings.driveSounds);
   m_sidePanel->setLastDirectory(m_settings.diskDirectory);
+  m_sidePanel->setLastStateDirectory(m_settings.stateDirectory);
 
   if (m_settings.windowW > 0 && m_settings.windowH > 0) {
     SDL_SetWindowSize(m_window, m_settings.windowW, m_settings.windowH);
@@ -305,6 +323,7 @@ void Apple2e::saveSettings() {
   m_settings.greenMonitor = m_video.monochrome();
   m_settings.driveSounds = m_driveSounds.enabled();
   m_settings.diskDirectory = m_sidePanel->lastDirectory();
+  m_settings.stateDirectory = m_sidePanel->lastStateDirectory();
   SDL_GetWindowPosition(m_window, &m_settings.windowX, &m_settings.windowY);
   SDL_GetWindowSize(m_window, &m_settings.windowW, &m_settings.windowH);
   if (!m_settings.save(m_settingsPath))
@@ -361,6 +380,11 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
       running = false;
       return;
     }
+    if ((mod & KMOD_GUI) && (mod & KMOD_SHIFT) &&
+        (key == SDLK_s || key == SDLK_l)) {
+      m_sidePanel->chooseStateFile(key == SDLK_s); // Save as / Load from file
+      return;
+    }
     if ((mod & KMOD_GUI) && key == SDLK_s) {
       quickSave();
       return;
@@ -403,7 +427,8 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
 void Apple2e::run() {
   std::cout << "F12: RESET   Shift+F12: reboot   Cmd+1/Cmd+2: insert disk   "
                "Cmd+D: drive sounds on/off\n"
-               "Cmd+G: colour/green monitor   Cmd+S/Cmd+L: save/load state   "
+               "Cmd+G: colour/green monitor   Cmd+S/Cmd+L: save/load state "
+               "(add Shift to choose the file)   "
                "Cmd+V: paste   Cmd+Q: quit\n";
 
   const double counterHz = static_cast<double>(SDL_GetPerformanceFrequency());

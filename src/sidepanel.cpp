@@ -121,6 +121,28 @@ std::string openFileDialog(const std::string& prompt, const std::string& directo
 #endif
 }
 
+// Native "save as" chooser; returns an empty string if cancelled or unsupported.
+// Blocks until the dialog closes.
+std::string saveFileDialog(const std::string& prompt, const std::string& directory,
+                           const std::string& defaultName) {
+#if defined(__APPLE__)
+    std::string script = "POSIX path of (choose file name with prompt " + appleScriptString(prompt) +
+                         " default name " + appleScriptString(defaultName);
+    if (!directory.empty()) script += " default location (POSIX file " + appleScriptString(directory) + ")";
+    script += ")";
+    return runCommand("osascript -e " + shellQuote(script) + " 2>/dev/null");
+#elif defined(__linux__)
+    std::string start = directory.empty() ? defaultName : directory + "/" + defaultName;
+    return runCommand("zenity --file-selection --save --confirm-overwrite --title=" + shellQuote(prompt) +
+                      " --filename=" + shellQuote(start) + " 2>/dev/null");
+#else
+    (void)prompt;
+    (void)directory;
+    (void)defaultName;
+    return {};
+#endif
+}
+
 } // namespace
 
 SidePanel::SidePanel(Disk2Controller* controller, VideoController& video, int x, int height)
@@ -163,6 +185,7 @@ void SidePanel::chooseDisk(int drive) {
     // The thread only touches the shared result, so it may outlive the panel
     // (e.g. quitting with the dialog still open)
     m_dialog = std::make_shared<DialogResult>();
+    m_dialogPurpose = DialogPurpose::Disk;
     m_dialogDrive = drive;
     std::string prompt = "Insert a disk in drive " + std::to_string(drive + 1);
     std::thread([result = m_dialog, prompt, directory = m_lastDirectory] {
@@ -171,10 +194,35 @@ void SidePanel::chooseDisk(int drive) {
     }).detach();
 }
 
+void SidePanel::chooseStateFile(bool save) {
+    if (m_dialog) return;
+
+    m_dialog = std::make_shared<DialogResult>();
+    m_dialogPurpose = save ? DialogPurpose::SaveState : DialogPurpose::LoadState;
+    std::thread([result = m_dialog, save, directory = m_lastStateDirectory] {
+        result->path = save ? saveFileDialog("Save the machine state as", directory, "Apple IIe.a2state")
+                            : openFileDialog("Load a saved machine state", directory);
+        result->done = true;
+    }).detach();
+}
+
 void SidePanel::update() {
     if (!m_dialog || !m_dialog->done) return;
-    if (!m_dialog->path.empty()) insert(m_dialogDrive, m_dialog->path);
+    std::string path = m_dialog->path;
+    DialogPurpose purpose = m_dialogPurpose;
     m_dialog.reset();
+    if (path.empty()) return;  // cancelled
+
+    if (purpose == DialogPurpose::Disk) {
+        insert(m_dialogDrive, path);
+        return;
+    }
+
+    namespace fs = std::filesystem;
+    if (purpose == DialogPurpose::SaveState && fs::path(path).extension() != ".a2state") path += ".a2state";
+    m_lastStateDirectory = fs::path(path).parent_path().string();
+    const auto& action = purpose == DialogPurpose::SaveState ? m_onSaveState : m_onLoadState;
+    if (action) action(path);
 }
 
 bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
@@ -188,8 +236,7 @@ bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
         for (int i = 0; i < 2; i++) {
             SDL_Rect button = stateButtonRect(i);
             if (!SDL_PointInRect(&p, &button)) continue;
-            const auto& action = i == 0 ? m_onSaveState : m_onLoadState;
-            if (action) action();
+            chooseStateFile(i == 0);
             return true;
         }
     }
@@ -253,7 +300,7 @@ void SidePanel::drawDrive(SDL_Renderer* r, int drive) const {
 
     // Image name
     int textY = y + kBodyHeight + 6;
-    if (m_dialog && m_dialogDrive == drive) {
+    if (m_dialog && m_dialogPurpose == DialogPurpose::Disk && m_dialogDrive == drive) {
         drawText(r, x, textY, "Choosing a disk...", kWarnText);
         return;
     }
@@ -286,7 +333,7 @@ void SidePanel::drawMonitorSwitch(SDL_Renderer* r) const {
 }
 
 void SidePanel::drawStateButtons(SDL_Renderer* r) const {
-    const char* labels[2] = {"Save state", "Load state"};
+    const char* labels[2] = {"Save as...", "Load..."};
     for (int i = 0; i < 2; i++) {
         SDL_Rect b = stateButtonRect(i);
         fill(r, b, kBodyEdge);
