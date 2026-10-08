@@ -33,6 +33,10 @@ public:
     // Call once per frame: inserts the disk once the file dialog has closed
     void update();
 
+    // Folder the file dialog opens in (remembered between runs)
+    const std::string& lastDirectory() const { return m_lastDirectory; }
+    void setLastDirectory(const std::string& dir) { m_lastDirectory = dir; }
+
 private:
     SDL_Rect driveRect(int drive) const;
     int driveAt(int x, int y) const;

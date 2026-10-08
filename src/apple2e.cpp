@@ -67,6 +67,12 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
       m_hasDisk2 ? &m_disk2 : nullptr, m_video, kScreenWidth, kScreenHeight);
 
   if (!headless) {
+    m_settingsPath = Settings::defaultPath();
+    if (!m_settingsPath.empty())
+      m_settings.load(m_settingsPath);
+  }
+
+  if (!headless) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) <
         0) {
       std::cerr << "SDL init failed: " << SDL_GetError() << std::endl;
@@ -98,6 +104,7 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
     SDL_RenderSetLogicalSize(m_renderer, kLogicalWidth, kScreenHeight);
     m_audio.init();
     SDL_StartTextInput();
+    applySettings();
   }
 
   reset(true);
@@ -153,6 +160,38 @@ void Apple2e::reset(bool coldStart) {
 void Apple2e::typeText(const std::string &text, int delayFrames) {
   m_delayedText = text;
   m_typeDelayFrames = delayFrames;
+}
+
+void Apple2e::applySettings() {
+  m_video.setMonochrome(m_settings.greenMonitor);
+  m_driveSounds.setEnabled(m_settings.driveSounds);
+  m_sidePanel->setLastDirectory(m_settings.diskDirectory);
+
+  if (m_settings.windowW > 0 && m_settings.windowH > 0) {
+    SDL_SetWindowSize(m_window, m_settings.windowW, m_settings.windowH);
+    // Only restore the position if it is still on a connected display
+    SDL_Point corner = {m_settings.windowX, m_settings.windowY};
+    for (int i = 0; i < SDL_GetNumVideoDisplays(); i++) {
+      SDL_Rect bounds;
+      if (SDL_GetDisplayBounds(i, &bounds) == 0 &&
+          SDL_PointInRect(&corner, &bounds)) {
+        SDL_SetWindowPosition(m_window, corner.x, corner.y);
+        break;
+      }
+    }
+  }
+}
+
+void Apple2e::saveSettings() {
+  if (m_settingsPath.empty() || !m_window)
+    return;
+  m_settings.greenMonitor = m_video.monochrome();
+  m_settings.driveSounds = m_driveSounds.enabled();
+  m_settings.diskDirectory = m_sidePanel->lastDirectory();
+  SDL_GetWindowPosition(m_window, &m_settings.windowX, &m_settings.windowY);
+  SDL_GetWindowSize(m_window, &m_settings.windowW, &m_settings.windowH);
+  if (!m_settings.save(m_settingsPath))
+    std::cerr << "Could not save settings to " << m_settingsPath << std::endl;
 }
 
 void Apple2e::runFrame() {
@@ -284,6 +323,8 @@ void Apple2e::run() {
       fpsFrames = 0;
     }
   }
+
+  saveSettings();
 }
 
 } // namespace apple2e

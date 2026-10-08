@@ -11,6 +11,7 @@
 #include "keyboard.h"
 #include "memory.h"
 #include "mousecard.h"
+#include "settings.h"
 #include "video.h"
 
 #include <SDL.h>
@@ -84,6 +85,12 @@ private:
 
     std::string m_delayedText;
     int m_typeDelayFrames = 0;
+
+    // Preferences restored at start-up and saved on exit (not when headless)
+    Settings m_settings;
+    std::string m_settingsPath;
+    void applySettings();
+    void saveSettings();
 
     SDL_Window* m_window = nullptr;
     SDL_Renderer* m_renderer = nullptr;
