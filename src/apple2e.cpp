@@ -12,7 +12,13 @@ constexpr int kSoftCardSlot = 5;
 constexpr int kScreenWidth = VideoController::kWidth;
 constexpr int kScreenHeight =
     VideoController::kHeight * 2; // scanlines doubled for 4:3
-constexpr int kLogicalWidth = kScreenWidth + SidePanel::kWidth;
+// Black border around the Apple screen, like a monitor's bezel; it also keeps
+// text clear of the window's rounded corners
+constexpr int kBorder = 16;
+constexpr SDL_Rect kScreenRect = {kBorder, kBorder, kScreenWidth, kScreenHeight};
+constexpr int kPanelX = kScreenWidth + 2 * kBorder;
+constexpr int kLogicalWidth = kPanelX + SidePanel::kWidth;
+constexpr int kLogicalHeight = kScreenHeight + 2 * kBorder;
 } // namespace
 
 Apple2e::Apple2e()
@@ -64,7 +70,7 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
   }
 
   m_sidePanel = std::make_unique<SidePanel>(
-      m_hasDisk2 ? &m_disk2 : nullptr, m_video, kScreenWidth, kScreenHeight);
+      m_hasDisk2 ? &m_disk2 : nullptr, m_video, kPanelX, kLogicalHeight);
 
   if (!headless) {
     m_settingsPath = Settings::defaultPath();
@@ -82,7 +88,7 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
 
     m_window = SDL_CreateWindow(
         "Apple IIe", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        kLogicalWidth * 3 / 2, kScreenHeight * 3 / 2,
+        kLogicalWidth * 3 / 2, kLogicalHeight * 3 / 2,
         SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
     if (!m_window) {
       std::cerr << "SDL window creation failed: " << SDL_GetError()
@@ -101,7 +107,7 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
       std::cerr << "Video init failed: " << SDL_GetError() << std::endl;
       return false;
     }
-    SDL_RenderSetLogicalSize(m_renderer, kLogicalWidth, kScreenHeight);
+    SDL_RenderSetLogicalSize(m_renderer, kLogicalWidth, kLogicalHeight);
     m_audio.init();
     SDL_StartTextInput();
     applySettings();
@@ -128,11 +134,12 @@ std::string Apple2e::insertDisk(int drive, const std::string &path) {
 
 bool Apple2e::saveScreenshot(const std::string &path) const {
   SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
-      0, kLogicalWidth, kScreenHeight, 32, SDL_PIXELFORMAT_ARGB8888);
+      0, kLogicalWidth, kLogicalHeight, 32, SDL_PIXELFORMAT_ARGB8888);
   if (!surface)
     return false;
 
-  m_video.copyToSurface(surface);
+  SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 0, 0, 0));
+  m_video.copyToSurface(surface, kScreenRect.x, kScreenRect.y);
   if (SDL_Renderer *renderer = SDL_CreateSoftwareRenderer(surface)) {
     m_sidePanel->draw(renderer);
     SDL_RenderPresent(renderer);
@@ -261,7 +268,7 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
   // Once software enables the mouse card, the host mouse drives it (and the
   // pointer is hidden over the screen, the Apple draws its own cursor);
   // otherwise it acts as paddles/buttons
-  const SDL_Rect screen = {0, 0, kScreenWidth, kScreenHeight};
+  const SDL_Rect screen = kScreenRect;
   if (event.type == SDL_MOUSEMOTION) {
     SDL_Point p = {event.motion.x, event.motion.y};
     bool overScreen = SDL_PointInRect(&p, &screen);
@@ -297,7 +304,7 @@ void Apple2e::run() {
     runFrame();
     SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
     SDL_RenderClear(m_renderer);
-    m_video.draw(m_renderer, {0, 0, kScreenWidth, kScreenHeight});
+    m_video.draw(m_renderer, kScreenRect);
     m_sidePanel->draw(m_renderer);
     SDL_RenderPresent(m_renderer);
 

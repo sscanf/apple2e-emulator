@@ -332,10 +332,12 @@ std::string VideoController::textDump() const {
     return out;
 }
 
-void VideoController::copyToSurface(SDL_Surface* surface) const {
-    for (int y = 0; y < kHeight * 2 && y < surface->h; y++) {
-        auto* dst = reinterpret_cast<uint8_t*>(surface->pixels) + y * surface->pitch;
-        std::memcpy(dst, &m_framebuffer[(y / 2) * kWidth], kWidth * sizeof(uint32_t));
+void VideoController::copyToSurface(SDL_Surface* surface, int x, int y) const {
+    if (x < 0 || y < 0 || x + kWidth > surface->w) return;
+    for (int row = 0; row < kHeight * 2 && y + row < surface->h; row++) {
+        auto* dst = reinterpret_cast<uint8_t*>(surface->pixels) + (y + row) * surface->pitch +
+                    x * sizeof(uint32_t);
+        std::memcpy(dst, &m_framebuffer[(row / 2) * kWidth], kWidth * sizeof(uint32_t));
     }
 }
 
