@@ -10,6 +10,9 @@
 
 namespace apple2e {
 
+class StateReader;
+class StateWriter;
+
 // 5.25" floppy held as a nibble stream per track, as the drive head sees it.
 // Sector images (.dsk/.do/.po) are 6-and-2 encoded on load and decoded back
 // when saved; .nib images are used as-is.
@@ -30,6 +33,10 @@ public:
 
     uint8_t readNibble(int track, size_t pos) const { return m_tracks[track][pos % kTrackBytes]; }
     void writeNibble(int track, size_t pos, uint8_t val);
+
+    // Save states (see state.h)
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
 private:
     enum class Format { DosOrder, ProDosOrder, Nibble };
@@ -64,6 +71,10 @@ public:
     std::string eject(int drive);
     // Save all modified disks (e.g. on exit)
     void flush();
+
+    // Save states (see state.h); disks are stored with their full contents
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
     const DiskImage& disk(int drive) const { return m_drives[drive].disk; }
     // Drive activity light: motor spinning and drive selected

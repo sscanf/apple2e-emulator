@@ -4,6 +4,9 @@
 
 namespace apple2e {
 
+class StateReader;
+class StateWriter;
+
 // Memory interface seen by the CPU
 class Bus {
 public:
@@ -48,6 +51,10 @@ public:
     uint8_t sp() const { return m_sp; }
     uint8_t p() const { return m_p; }
     void setPC(uint16_t pc) { m_pc = pc; }
+
+    // Save states (see state.h)
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
 private:
     void execute(uint8_t op);

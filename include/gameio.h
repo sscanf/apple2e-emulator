@@ -7,6 +7,9 @@
 
 namespace apple2e {
 
+class StateReader;
+class StateWriter;
+
 // Game I/O connector: four paddles (analog, 0-255) and three push buttons.
 // Driven by the mouse over the Apple screen (X/Y -> paddles 0/1, left/right
 // button -> buttons 0/1) or by a game controller (sticks -> paddles 0-3,
@@ -24,6 +27,10 @@ public:
     bool paddleTimerRunning(int paddle, uint64_t cycle) const;
     // $C061-$C063
     bool button(int n) const { return m_mouseButtons[n] || m_padButtons[n]; }
+
+    // Save states (see state.h)
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
 private:
     void openController(int deviceIndex);

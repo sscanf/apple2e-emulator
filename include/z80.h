@@ -6,6 +6,9 @@
 
 namespace apple2e {
 
+class StateReader;
+class StateWriter;
+
 // Zilog Z80, including the undocumented flags (X/Y), IXH/IXL/IYH/IYL and
 // DDCB/FDCB register copies. I/O ports read as $FF (nothing is wired to
 // them on the SoftCard). Interrupts are not used and not implemented.
@@ -26,6 +29,10 @@ public:
     uint8_t e() const { return m_de & 0xFF; }
     uint16_t de() const { return m_de; }
     bool halted() const { return m_halted; }
+
+    // Save states (see state.h)
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
     // Return from the current subroutine (for harnesses that trap calls)
     void ret() { m_pc = pop(); }

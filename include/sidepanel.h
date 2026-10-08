@@ -3,6 +3,7 @@
 #include <SDL.h>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -33,6 +34,18 @@ public:
     // Call once per frame: inserts the disk once the file dialog has closed
     void update();
 
+    // Save/load state buttons
+    void setStateActions(std::function<void()> save, std::function<void()> load) {
+        m_onSaveState = std::move(save);
+        m_onLoadState = std::move(load);
+    }
+
+    // Status line at the bottom of the panel
+    void showMessage(const std::string& text, bool isError) {
+        m_message = text;
+        m_messageIsError = isError;
+    }
+
     // Folder the file dialog opens in (remembered between runs)
     const std::string& lastDirectory() const { return m_lastDirectory; }
     void setLastDirectory(const std::string& dir) { m_lastDirectory = dir; }
@@ -44,6 +57,8 @@ private:
     void eject(int drive);
     void drawDrive(SDL_Renderer* renderer, int drive) const;
     SDL_Rect monitorSwitchRect() const;
+    SDL_Rect stateButtonRect(int index) const;  // 0 save, 1 load
+    void drawStateButtons(SDL_Renderer* renderer) const;
     void drawMonitorSwitch(SDL_Renderer* renderer) const;
 
     // Result of a file dialog running in the background
@@ -59,7 +74,10 @@ private:
     int m_x;
     int m_height;
     std::string m_lastDirectory;
-    std::string m_message;  // last error, shown at the bottom of the panel
+    std::string m_message;  // last status or error, shown at the bottom
+    bool m_messageIsError = true;
+    std::function<void()> m_onSaveState;
+    std::function<void()> m_onLoadState;
 };
 
 } // namespace apple2e

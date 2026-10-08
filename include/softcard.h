@@ -8,6 +8,9 @@
 
 namespace apple2e {
 
+class StateReader;
+class StateWriter;
+
 // Microsoft SoftCard: a Z80 on a card, used to run CP/M. Every write to
 // $Cn00 flips control between the 6502 and the Z80 (the Z80 reaches that
 // address as $En00). While the Z80 runs the 6502 is halted. The Z80 sees
@@ -30,6 +33,10 @@ public:
 
     // RESET line: back to the 6502, Z80 restarts at $0000
     void reset();
+
+    // Save states (see state.h)
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
 private:
     // The Z80's view of the Apple bus

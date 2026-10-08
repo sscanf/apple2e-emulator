@@ -12,7 +12,10 @@ struct Settings {
     std::string diskDirectory;  // where the disk file dialog opens
     int windowX = 0, windowY = 0, windowW = 0, windowH = 0;  // size 0: default
 
-    // Settings file path, or empty if the platform gives no settings folder
+    // Per-user folder for settings and quick save states (ends with a
+    // separator), or empty if the platform gives none
+    static std::string folder();
+    // Settings file path, or empty if there is no settings folder
     static std::string defaultPath();
 
     // Missing or unreadable files leave the defaults in place

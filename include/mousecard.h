@@ -11,6 +11,9 @@
 
 namespace apple2e {
 
+class StateReader;
+class StateWriter;
+
 // AppleMouse II card. Apple's firmware (and the card's 6805) is replaced by a
 // small 6502 stub with the documented entry points (SETMOUSE, SERVEMOUSE,
 // READMOUSE, CLEARMOUSE, POSMOUSE, CLAMPMOUSE, HOMEMOUSE, INITMOUSE); each one
@@ -40,6 +43,10 @@ public:
     void setIrqCallback(std::function<void(bool)> cb) { m_setIrq = std::move(cb); }
 
     void reset();
+
+    // Save states (see state.h)
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
 private:
     enum Command : uint8_t { SET, SERVE, READ, CLEAR, POS, CLAMP, HOME, INIT, kCommands };

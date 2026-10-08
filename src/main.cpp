@@ -45,6 +45,8 @@ void usage(const char* argv0) {
               << "                      needs disk2.rom (Disk II boot ROM), looked up like the ROM\n"
               << "  --green             start with a green-phosphor monitor (toggle with Cmd+G;\n"
               << "                      otherwise the monitor last used is restored)\n"
+              << "  --load-state FILE   start from a save state\n"
+              << "  --save-state FILE   with --headless, save the state at the end\n"
               << "  --headless FRAMES   run without a window and print the text screen\n"
               << "  --type TEXT         type TEXT one second after boot (newlines become RETURN,\n"
               << "                      \\x10 pauses half a second)\n"
@@ -58,6 +60,8 @@ int main(int argc, char* argv[]) {
     std::string romPath;
     std::string typed;
     std::string screenshotPath;
+    std::string loadStatePath;
+    std::string saveStatePath;
     std::string diskPaths[2];
     int headlessFrames = -1;
     int typeDelayFrames = 60;
@@ -75,6 +79,10 @@ int main(int argc, char* argv[]) {
             typeDelayFrames = std::atoi(argv[++i]);
         } else if (arg == "--green") {
             green = true;
+        } else if (arg == "--load-state" && i + 1 < argc) {
+            loadStatePath = argv[++i];
+        } else if (arg == "--save-state" && i + 1 < argc) {
+            saveStatePath = argv[++i];
         } else if (arg == "--screenshot" && i + 1 < argc) {
             screenshotPath = argv[++i];
         } else if (arg == "-h" || arg == "--help") {
@@ -103,11 +111,25 @@ int main(int argc, char* argv[]) {
         std::string error = emulator.insertDisk(drive, diskPaths[drive]);
         if (!error.empty()) std::cerr << error << std::endl;
     }
+    if (!loadStatePath.empty()) {
+        std::string error = emulator.loadState(loadStatePath);
+        if (!error.empty()) {
+            std::cerr << error << std::endl;
+            return 1;
+        }
+    }
     emulator.typeText(typed, typeDelayFrames);
 
     if (headlessFrames >= 0) {
         emulator.runFrames(headlessFrames);
         std::cout << emulator.screenText();
+        if (!saveStatePath.empty()) {
+            std::string error = emulator.saveState(saveStatePath);
+            if (!error.empty()) {
+                std::cerr << error << std::endl;
+                return 1;
+            }
+        }
         if (!screenshotPath.empty() && !emulator.saveScreenshot(screenshotPath)) {
             std::cerr << "Failed to save screenshot: " << SDL_GetError() << std::endl;
             return 1;

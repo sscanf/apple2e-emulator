@@ -1,4 +1,5 @@
 #include "disk2.h"
+#include "state.h"
 
 #include <algorithm>
 #include <cctype>
@@ -330,6 +331,50 @@ uint8_t Disk2Controller::io(uint8_t reg, bool isWrite, uint8_t val) {
         }
     }
     return m_latch;
+}
+
+// ============================================================
+// Save states
+// ============================================================
+
+void DiskImage::saveState(StateWriter& w) const {
+    w.putString(m_path);
+    w.put(m_format);
+    w.put(m_writeProtected);
+    w.put(m_dirty);
+    w.put(static_cast<uint32_t>(m_tracks.size()));
+    for (const auto& track : m_tracks) w.putBytes(track.data(), track.size());
+}
+
+void DiskImage::loadState(StateReader& r) {
+    m_path = r.getString();
+    r.get(m_format);
+    r.get(m_writeProtected);
+    r.get(m_dirty);
+    auto tracks = r.get<uint32_t>();
+    if (tracks != 0 && tracks != kTracks) tracks = 0;  // corrupt; reader ok() catches the rest
+    m_tracks.assign(tracks, {});
+    for (auto& track : m_tracks) r.getBytes(track.data(), track.size());
+}
+
+void Disk2Controller::saveState(StateWriter& w) const {
+    w.put(m_selected); w.put(m_motorOn); w.put(m_motorOffCycle);
+    w.put(m_q6); w.put(m_q7); w.put(m_phases); w.put(m_latch); w.put(m_nibbleReady);
+    for (const auto& drive : m_drives) {
+        w.put(drive.halfTrack);
+        w.put(drive.position);
+        drive.disk.saveState(w);
+    }
+}
+
+void Disk2Controller::loadState(StateReader& r) {
+    r.get(m_selected); r.get(m_motorOn); r.get(m_motorOffCycle);
+    r.get(m_q6); r.get(m_q7); r.get(m_phases); r.get(m_latch); r.get(m_nibbleReady);
+    for (auto& drive : m_drives) {
+        r.get(drive.halfTrack);
+        r.get(drive.position);
+        drive.disk.loadState(r);
+    }
 }
 
 } // namespace apple2e

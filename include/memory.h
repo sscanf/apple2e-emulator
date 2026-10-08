@@ -9,6 +9,9 @@
 
 namespace apple2e {
 
+class StateReader;
+class StateWriter;
+
 class IOController;
 
 // Soft-switch state of the IIe MMU and IOU. Shared by memory (bank
@@ -67,6 +70,10 @@ public:
     // Raw RAM banks (used by the video generator)
     const uint8_t* mainRam() const { return m_main.data(); }
     const uint8_t* auxRam() const { return m_aux.data(); }
+
+    // Save states (see state.h)
+    void saveState(StateWriter& w) const;
+    void loadState(StateReader& r);
 
 private:
     using Bank = std::array<uint8_t, 0x10000>;

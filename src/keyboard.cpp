@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include "state.h"
 
 namespace apple2e {
 
@@ -95,6 +96,18 @@ void KeyboardController::handleEvent(const SDL_Event& event) {
         default:
             break;
     }
+}
+
+void KeyboardController::saveState(StateWriter& w) const {
+    w.put(m_latch);
+    w.put(m_strobe);
+}
+
+void KeyboardController::loadState(StateReader& r) {
+    r.get(m_latch);
+    r.get(m_strobe);
+    m_pending.clear();
+    m_keysHeld = 0;
 }
 
 } // namespace apple2e

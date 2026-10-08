@@ -1,6 +1,7 @@
 #include "apple2e.h"
 
 #include <cstdio>
+#include <fstream>
 #include <iostream>
 
 namespace apple2e {
@@ -71,6 +72,7 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
 
   m_sidePanel = std::make_unique<SidePanel>(
       m_hasDisk2 ? &m_disk2 : nullptr, m_video, kPanelX, kLogicalHeight);
+  m_sidePanel->setStateActions([this] { quickSave(); }, [this] { quickLoad(); });
 
   if (!headless) {
     m_settingsPath = Settings::defaultPath();
@@ -169,6 +171,114 @@ void Apple2e::typeText(const std::string &text, int delayFrames) {
   m_typeDelayFrames = delayFrames;
 }
 
+// ============================================================
+// Save states
+// ============================================================
+
+namespace {
+constexpr char kStateMagic[8] = {'A', '2', 'E', 'S', 'T', 'A', 'T', 'E'};
+constexpr uint32_t kStateVersion = 1;
+} // namespace
+
+void Apple2e::writeState(StateWriter &w) const {
+  w.putBytes(kStateMagic, sizeof(kStateMagic));
+  w.put(kStateVersion);
+  w.put(m_cycles);
+  w.put(m_switches);
+  m_memory.saveState(w);
+  m_cpu.saveState(w);
+  m_softCard.saveState(w);
+  m_keyboard.saveState(w);
+  m_gameIO.saveState(w);
+  m_mouseCard.saveState(w);
+  w.put(m_hasDisk2);
+  if (m_hasDisk2)
+    m_disk2.saveState(w);
+}
+
+void Apple2e::readState(StateReader &r) {
+  r.get(m_cycles);
+  r.get(m_switches);
+  m_memory.loadState(r);
+  m_cpu.loadState(r);
+  m_softCard.loadState(r);
+  m_keyboard.loadState(r);
+  m_gameIO.loadState(r);
+  m_mouseCard.loadState(r);
+  bool hadDisk2 = r.get<bool>();
+  if (hadDisk2)
+    m_disk2.loadState(r);
+}
+
+std::string Apple2e::saveState(const std::string &path) {
+  StateWriter w;
+  writeState(w);
+  std::ofstream file(path, std::ios::binary | std::ios::trunc);
+  if (!file.write(reinterpret_cast<const char *>(w.data().data()),
+                  w.data().size()))
+    return "Cannot write " + path;
+  return {};
+}
+
+std::string Apple2e::loadState(const std::string &path) {
+  std::ifstream file(path, std::ios::binary);
+  if (!file)
+    return "Cannot open " + path;
+  std::vector<uint8_t> data((std::istreambuf_iterator<char>(file)),
+                            std::istreambuf_iterator<char>());
+
+  StateReader header(data);
+  char magic[sizeof(kStateMagic)];
+  header.getBytes(magic, sizeof(magic));
+  auto version = header.get<uint32_t>();
+  if (!header.ok() || std::memcmp(magic, kStateMagic, sizeof(magic)) != 0)
+    return path + " is not a save state";
+  if (version != kStateVersion)
+    return "Save state version " + std::to_string(version) + " is not supported";
+
+  // Keep the current state to roll back to if the file turns out to be bad,
+  // and save disks with pending changes before their contents are replaced
+  StateWriter backup;
+  writeState(backup);
+  if (m_hasDisk2)
+    m_disk2.flush();
+
+  StateReader r(data);
+  std::vector<uint8_t> skip(sizeof(kStateMagic) + sizeof(uint32_t));
+  r.getBytes(skip.data(), skip.size());
+  readState(r);
+  if (!r.ok() || !r.atEnd()) {
+    StateReader restore(backup.data());
+    restore.getBytes(skip.data(), skip.size());
+    readState(restore);
+    return path + " is damaged; state not loaded";
+  }
+
+  // Timing derived from the cycle counter restarts at the restored count
+  m_audio.resync(m_cycles);
+  m_driveSounds.clearEvents();
+  return {};
+}
+
+std::string Apple2e::quickStatePath() {
+  std::string dir = Settings::folder();
+  return dir.empty() ? dir : dir + "quicksave.a2state";
+}
+
+void Apple2e::quickSave() {
+  std::string path = quickStatePath();
+  std::string error = path.empty() ? "No settings folder" : saveState(path);
+  m_sidePanel->showMessage(error.empty() ? "State saved" : error, !error.empty());
+}
+
+void Apple2e::quickLoad() {
+  std::string path = quickStatePath();
+  std::string error = path.empty() ? "No settings folder" : loadState(path);
+  if (!error.empty() && !std::ifstream(path))
+    error = "No saved state yet (Cmd+S saves one)";
+  m_sidePanel->showMessage(error.empty() ? "State loaded" : error, !error.empty());
+}
+
 void Apple2e::applySettings() {
   m_video.setMonochrome(m_settings.greenMonitor);
   m_driveSounds.setEnabled(m_settings.driveSounds);
@@ -251,6 +361,14 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
       running = false;
       return;
     }
+    if ((mod & KMOD_GUI) && key == SDLK_s) {
+      quickSave();
+      return;
+    }
+    if ((mod & KMOD_GUI) && key == SDLK_l) {
+      quickLoad();
+      return;
+    }
     if ((mod & KMOD_GUI) && key == SDLK_g) {
       m_video.setMonochrome(!m_video.monochrome());
       return;
@@ -285,7 +403,8 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
 void Apple2e::run() {
   std::cout << "F12: RESET   Shift+F12: reboot   Cmd+1/Cmd+2: insert disk   "
                "Cmd+D: drive sounds on/off\n"
-               "Cmd+G: colour/green monitor   Cmd+V: paste   Cmd+Q: quit\n";
+               "Cmd+G: colour/green monitor   Cmd+S/Cmd+L: save/load state   "
+               "Cmd+V: paste   Cmd+Q: quit\n";
 
   const double counterHz = static_cast<double>(SDL_GetPerformanceFrequency());
   const double frameSeconds = kCyclesPerFrame / kCpuClockHz;

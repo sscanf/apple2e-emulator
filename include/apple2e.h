@@ -5,6 +5,7 @@
 #include "disk2.h"
 #include "sidepanel.h"
 #include "softcard.h"
+#include "state.h"
 #include "drivesounds.h"
 #include "gameio.h"
 #include "io.h"
@@ -56,6 +57,14 @@ public:
     // (the ROM discards keys pressed while it is still booting)
     void typeText(const std::string& text, int delayFrames = 0);
 
+    // Save states: the whole machine (CPUs, memory, cards, disks with their
+    // contents). Both return an error message, empty on success; a failed
+    // load leaves the machine as it was.
+    std::string saveState(const std::string& path);
+    std::string loadState(const std::string& path);
+    // Quick slot in the settings folder (Cmd+S / Cmd+L)
+    static std::string quickStatePath();
+
     // Text screen contents as ASCII
     std::string screenText() const { return m_video.textDump(); }
     // Save the screen and disk panel as a BMP
@@ -63,6 +72,10 @@ public:
 
 private:
     void runFrame();
+    void writeState(StateWriter& w) const;
+    void readState(StateReader& r);
+    void quickSave();
+    void quickLoad();
     void handleEvent(const SDL_Event& event, bool& running);
 
     // Construction order matters: components reference each other

@@ -1,4 +1,5 @@
 #include "mousecard.h"
+#include "state.h"
 
 #include <algorithm>
 
@@ -191,6 +192,19 @@ bool MouseCard::handleEvent(const SDL_Event& event, const SDL_Rect& screen) {
         default:
             return false;
     }
+}
+
+void MouseCard::saveState(StateWriter& w) const {
+    w.put(m_mode); w.put(m_x); w.put(m_y);
+    w.put(m_minX); w.put(m_maxX); w.put(m_minY); w.put(m_maxY);
+    w.put(m_down); w.put(m_downAtLastRead); w.put(m_moved); w.put(m_irqFlags); w.put(m_result);
+}
+
+void MouseCard::loadState(StateReader& r) {
+    r.get(m_mode); r.get(m_x); r.get(m_y);
+    r.get(m_minX); r.get(m_maxX); r.get(m_minY); r.get(m_maxY);
+    r.get(m_down); r.get(m_downAtLastRead); r.get(m_moved); r.get(m_irqFlags); r.get(m_result);
+    if (m_setIrq) m_setIrq(m_irqFlags != 0);
 }
 
 } // namespace apple2e
