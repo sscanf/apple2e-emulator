@@ -5,6 +5,10 @@
 #include "font.h"
 #include "video.h"
 
+#ifdef HAVE_SDL_IMAGE
+#include <SDL_image.h>
+#endif
+
 #include <cstdio>
 #include <filesystem>
 #include <thread>
@@ -321,11 +325,63 @@ bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
     return false;
 }
 
-void SidePanel::drawDrive(SDL_Renderer* r, int drive) const {
+SidePanel::~SidePanel() {
+    for (auto& drive : m_driveTextures) {
+        for (SDL_Texture* t : drive) {
+            if (t) SDL_DestroyTexture(t);
+        }
+    }
+    for (auto& drive : m_driveImages) {
+        for (SDL_Surface* s : drive) {
+            if (s) SDL_FreeSurface(s);
+        }
+    }
+}
+
+bool SidePanel::loadDriveImages(const std::string& directory) {
+#ifdef HAVE_SDL_IMAGE
+    static const char* kNames[2][kLooks] = {
+        {"driveopen.png", "driveclosed.png", "driverunning.png"},
+        {"drive2open.png", "drive2closed.png", "drive2running.png"},
+    };
+    IMG_Init(IMG_INIT_PNG);
+    for (int d = 0; d < 2; d++) {
+        for (int look = 0; look < kLooks; look++) {
+            std::string path = (std::filesystem::path(directory) / kNames[d][look]).string();
+            m_driveImages[d][look] = IMG_Load(path.c_str());
+            if (!m_driveImages[d][look]) return false;
+        }
+    }
+    return true;
+#else
+    (void)directory;
+    return false;
+#endif
+}
+
+// Draw the drive's picture for its current state; false if there is none
+bool SidePanel::drawDriveImage(SDL_Renderer* r, int drive, const SDL_Rect& dst) const {
     const DiskImage& disk = m_controller->disk(drive);
-    SDL_Rect area = driveRect(drive);
-    int x = area.x;
-    int y = area.y;
+    DriveLook look = !disk.loaded() ? kOpen : (m_controller->active(drive) ? kRunning : kClosed);
+    SDL_Surface* image = m_driveImages[drive][look];
+    if (!image) return false;
+
+    bool cached = r == m_mainRenderer;
+    SDL_Texture* texture = cached ? m_driveTextures[drive][look] : nullptr;
+    if (!texture) {
+        texture = SDL_CreateTextureFromSurface(r, image);
+        if (!texture) return false;
+        SDL_SetTextureScaleMode(texture, SDL_ScaleModeLinear);  // smooth downscaling
+        if (cached) m_driveTextures[drive][look] = texture;
+    }
+    SDL_RenderCopy(r, texture, nullptr, &dst);
+    if (!cached) SDL_DestroyTexture(texture);
+    return true;
+}
+
+// Plain drawing of a drive, used when there are no pictures
+void SidePanel::drawDriveShapes(SDL_Renderer* r, int drive, int x, int y) const {
+    const DiskImage& disk = m_controller->disk(drive);
     int cx = x + kBodyWidth / 2;
 
     // Case
@@ -350,6 +406,19 @@ void SidePanel::drawDrive(SDL_Renderer* r, int drive) const {
     fill(r, {x + 10, y + 68, 10, 6}, m_controller->active(drive) ? kLedOn : kLedOff);
     drawText(r, x + 25, y + 68, "IN USE", kLabel);
     drawText(r, x + kBodyWidth - 50, y + 68, "disk II", kLabel);
+}
+
+void SidePanel::drawDrive(SDL_Renderer* r, int drive) const {
+    const DiskImage& disk = m_controller->disk(drive);
+    SDL_Rect area = driveRect(drive);
+    int x = area.x;
+    int y = area.y;
+
+    // The picture keeps its aspect ratio, centred in the drive's slot
+    const SDL_Surface* picture = m_driveImages[drive][kOpen];
+    int pictureHeight = picture ? kBodyWidth * picture->h / picture->w : 0;
+    SDL_Rect pictureRect = {x, y + (kBodyHeight - pictureHeight) / 2, kBodyWidth, pictureHeight};
+    if (!picture || !drawDriveImage(r, drive, pictureRect)) drawDriveShapes(r, drive, x, y);
 
     // Image name
     int textY = y + kBodyHeight + 6;

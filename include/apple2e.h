@@ -38,6 +38,9 @@ public:
     // Colour or green-phosphor monitor
     void setMonochrome(bool on) { m_video.setMonochrome(on); }
 
+    // Pictures of the disk drives for the side panel (see SidePanel)
+    bool loadDriveImages(const std::string& directory) { return m_sidePanel->loadDriveImages(directory); }
+
     // Load Disk II mechanical sound samples (motor, head steps) from a folder
     void loadDriveSounds(const std::string& directory);
 

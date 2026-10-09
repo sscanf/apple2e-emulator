@@ -16,7 +16,9 @@ Enhanced Apple IIe emulator in C++20 with SDL2.
 
 ## Build
 
-Requires CMake 3.20+ and SDL2 (`brew install sdl2`).
+Requires CMake 3.20+ and SDL2 (`brew install sdl2`). SDL2_image
+(`brew install sdl2_image`) is optional: with it the side panel shows pictures
+of the disk drives, without it they are drawn with plain shapes.
 
 ```sh
 cmake -S . -B build
@@ -136,6 +138,14 @@ with DIR, STAT, PIP, Turbo Pascal and WordStar). Programs that need an
 
 Note that SoftCard CP/M translates some control keys for the Apple II+
 keyboard (for example CTRL-K types `[`); its CONFIGIO utility changes that.
+
+### Drive pictures
+
+`assets/drives/` holds a picture of each drive in three states (door open
+when empty, closed with a disk, and running with the activity light on).
+They are rendered from the SVG drawings in `assets/drives/src/` with
+`tools/render_drives.sh`, which uses headless Google Chrome because the
+drawings use text and filters; run it again after editing an SVG.
 
 ### Drive sounds
 
