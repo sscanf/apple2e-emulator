@@ -155,8 +155,9 @@ the case is drawn as a plain frame.
 
 ### Drive pictures
 
-`assets/drives/` holds a picture of each drive in three states (door open
-when empty, closed with a disk, and running with the activity light on).
+`assets/drives/` holds a picture of each drive with the door open (empty)
+or closed (with a disk), each with the activity light off or on; the light
+follows the motor, so an empty drive can show it too.
 They are rendered from the SVG drawings in `assets/drives/src/` with
 `tools/render_assets.sh`, which uses headless Google Chrome because the
 drawings use text and filters; run it again after editing an SVG.

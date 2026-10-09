@@ -362,15 +362,16 @@ SidePanel::~SidePanel() {
 bool SidePanel::loadDriveImages(const std::string& directory) {
 #ifdef HAVE_SDL_IMAGE
     static const char* kNames[2][kLooks] = {
-        {"driveopen.png", "driveclosed.png", "driverunning.png"},
-        {"drive2open.png", "drive2closed.png", "drive2running.png"},
+        {"driveopen.png", "driveclosed.png", "driverunning.png", "driveopenrunning.png"},
+        {"drive2open.png", "drive2closed.png", "drive2running.png", "drive2openrunning.png"},
     };
     IMG_Init(IMG_INIT_PNG);
     for (int d = 0; d < 2; d++) {
         for (int look = 0; look < kLooks; look++) {
             std::string path = (std::filesystem::path(directory) / kNames[d][look]).string();
             m_driveImages[d][look] = IMG_Load(path.c_str());
-            if (!m_driveImages[d][look]) return false;
+            // The open-and-running picture is optional
+            if (!m_driveImages[d][look] && look != kOpenRunning) return false;
         }
     }
     return true;
@@ -383,7 +384,9 @@ bool SidePanel::loadDriveImages(const std::string& directory) {
 // Draw the drive's picture for its current state; false if there is none
 bool SidePanel::drawDriveImage(SDL_Renderer* r, int drive, const SDL_Rect& dst) const {
     const DiskImage& disk = m_controller->disk(drive);
-    DriveLook look = !disk.loaded() ? kOpen : (m_controller->active(drive) ? kRunning : kClosed);
+    bool running = m_controller->active(drive);
+    DriveLook look = disk.loaded() ? (running ? kRunning : kClosed) : (running ? kOpenRunning : kOpen);
+    if (!m_driveImages[drive][look] && look == kOpenRunning) look = kOpen;
     SDL_Surface* image = m_driveImages[drive][look];
     if (!image) return false;
 
