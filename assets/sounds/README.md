@@ -3,7 +3,8 @@
 Recordings of a real Apple Disk II drive: `Spin_Sound.wav` (motor, played in
 a loop), `Read_1_Sound.wav` / `Read_2_Sound.wav` (head steps) and
 `Grunt_Grind_1_Sound.wav` / `Grunt_Grind_2_Sound.wav` (head hitting the
-track 0 stop during recalibration).
+track 0 stop during recalibration) and `Sqweak_Sound.wav` (door opening, played
+when a disk is ejected).
 
 They were downloaded from a website offering them as free to use; the
 original source could not be identified. The file names match those used by

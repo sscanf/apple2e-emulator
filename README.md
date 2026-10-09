@@ -114,8 +114,9 @@ The Disk II needs its 256-byte boot ROM (341-0027) as `disk2.rom`, looked up
 in the same places as `apple2e.rom`. Without it the emulator runs with no disk
 controller and boots into BASIC.
 
-In the side panel, click a drive to choose a disk image, right-click it to
-eject, or drop an image file onto it. Disks can also be inserted at startup:
+In the side panel, click an empty drive to choose a disk image, click a
+drive with a disk to eject it (the drive is then empty, and plays the door
+sound), or drop an image file onto a drive. Right-click also ejects. Disks can also be inserted at startup:
 
 ```sh
 ./build/apple2e_emulator --disk1 "DOS 3.3.dsk" --disk2 data.dsk
@@ -139,13 +140,15 @@ keyboard (for example CTRL-K types `[`); its CONFIGIO utility changes that.
 ### Drive sounds
 
 The drive plays its mechanical noises: the motor while the disk spins, a
-click on each head step and the grind of the head hitting the track 0 stop.
+click on each head step, the grind of the head hitting the track 0 stop and
+the door when a disk is ejected.
 The repository includes recordings of a real Disk II (see
 [assets/sounds](assets/sounds/README.md) about their origin).
 
 To use your own, put them in a `sounds/` folder (same places as the ROMs; it is
 ignored by git and takes priority), either with the same file names or as
-`motor.wav`, `step1.wav`, `step2.wav` and `grind.wav` (16-bit PCM WAV).
+`motor.wav`, `step1.wav`, `step2.wav`, `grind.wav` and `eject.wav` (16-bit
+PCM WAV).
 
 ### Headless mode
 

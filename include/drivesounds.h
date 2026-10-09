@@ -7,9 +7,9 @@
 namespace apple2e {
 
 // Mechanical Disk II noises mixed into the audio output: the motor hum while
-// the disk spins, a click per head step, and the grind of the head hitting
-// the track 0 stop. Samples are loaded from WAV files; any that are missing
-// are simply not played.
+// the disk spins, a click per head step, the grind of the head hitting the
+// track 0 stop, and the door when a disk is taken out. Samples are loaded
+// from WAV files; any that are missing are simply not played.
 class DriveSounds {
 public:
     enum class Event { Step, Bump };
@@ -24,6 +24,9 @@ public:
     void setMotor(bool spinning) { m_motorOn = spinning; }
     void trigger(Event event, uint64_t cycle) { m_events.push_back({event, cycle}); }
     void clearEvents() { m_events.clear(); }
+
+    // Disk taken out of a drive (plays right away; user action, not CPU-timed)
+    void playEject();
 
     // Add drive sounds to `n` samples whose first sample is at CPU cycle `startCycle`
     void mix(float* buffer, size_t n, double startCycle, double cyclesPerSample);
@@ -51,6 +54,7 @@ private:
     Sample m_spin;  // seamless loop
     std::vector<Sample> m_steps;
     std::vector<Sample> m_grinds;
+    Sample m_eject;
     size_t m_nextStep = 0;
     size_t m_nextGrind = 0;
 

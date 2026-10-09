@@ -17,18 +17,20 @@ struct SoundSet {
     const char* motor;
     const char* steps[2];
     const char* grinds[2];
+    const char* eject;
     float motorGain;
     float stepGain;
     float grindGain;
+    float ejectGain;
 };
 
 constexpr SoundSet kSoundSets[] = {
     // The recordings bundled in assets/sounds; they peak at about 0.016
     // (motor), 0.05 (steps) and 0.55 (grind)
     {"Spin_Sound.wav", {"Read_1_Sound.wav", "Read_2_Sound.wav"},
-     {"Grunt_Grind_1_Sound.wav", "Grunt_Grind_2_Sound.wav"}, 4.0f, 2.0f, 0.35f},
+     {"Grunt_Grind_1_Sound.wav", "Grunt_Grind_2_Sound.wav"}, "Sqweak_Sound.wav", 4.0f, 2.0f, 0.35f, 1.0f},
     // Generic names for user-supplied recordings, played at their own level
-    {"motor.wav", {"step1.wav", "step2.wav"}, {"grind.wav", nullptr}, 1.0f, 1.0f, 1.0f},
+    {"motor.wav", {"step1.wav", "step2.wav"}, {"grind.wav", nullptr}, "eject.wav", 1.0f, 1.0f, 1.0f, 1.0f},
 };
 
 constexpr float kSpinFadePerSample = 1.0f / 1500;  // ~30 ms fade in/out
@@ -102,12 +104,17 @@ bool DriveSounds::load(const std::string& directory, int sampleRate) {
             auto sample = loadWav(dir / name, sampleRate, set.grindGain);
             if (!sample.empty()) m_grinds.push_back(std::move(sample));
         }
+        m_eject = loadWav(dir / set.eject, sampleRate, set.ejectGain);
         break;
     }
 
-    bool any = !m_spin.empty() || !m_steps.empty() || !m_grinds.empty();
+    bool any = !m_spin.empty() || !m_steps.empty() || !m_grinds.empty() || !m_eject.empty();
     if (any) std::cout << "Drive sounds loaded from " << directory << std::endl;
     return any;
+}
+
+void DriveSounds::playEject() {
+    if (m_enabled && !m_eject.empty()) start(m_eject, 0);
 }
 
 void DriveSounds::start(const Sample& sample, int delay) {
