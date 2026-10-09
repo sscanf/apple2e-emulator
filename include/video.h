@@ -38,6 +38,10 @@ public:
     void renderFrame();
     // Upload the framebuffer and draw it into `dst` (renderer coordinates)
     void draw(SDL_Renderer* renderer, const SDL_Rect& dst);
+    // The framebuffer uploaded to the texture made by init() (560x192)
+    SDL_Texture* frameTexture();
+    // A new texture holding the framebuffer, for another renderer (caller destroys it)
+    SDL_Texture* createFrameTexture(SDL_Renderer* renderer) const;
 
     // Text page contents as plain ASCII, 24 lines (for headless runs)
     std::string textDump() const;

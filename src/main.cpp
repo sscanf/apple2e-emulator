@@ -16,6 +16,7 @@ constexpr const char* kVideoRom = "video.rom";  // optional character generator
 constexpr const char* kSoundsDir = "sounds";              // your own recordings (not in git)
 constexpr const char* kBundledSoundsDir = "assets/sounds"; // shipped with the repository
 constexpr const char* kDriveImagesDir = "assets/drives";
+constexpr const char* kMonitorImageDir = "assets/monitor";
 
 // Look for a support file or folder in the current directory, next to the
 // executable, and one level above it (the project root for build/ trees).
@@ -46,6 +47,7 @@ void usage(const char* argv0) {
               << "                      needs disk2.rom (Disk II boot ROM), looked up like the ROM\n"
               << "  --green             start with a green-phosphor monitor (toggle with Cmd+G;\n"
               << "                      otherwise the monitor last used is restored)\n"
+              << "  --crt               Apple Monitor II look with CRT effects (Cmd+M)\n"
               << "  --load-state FILE   start from a save state\n"
               << "  --save-state FILE   with --headless, save the state at the end\n"
               << "  --headless FRAMES   run without a window and print the text screen\n"
@@ -67,6 +69,7 @@ int main(int argc, char* argv[]) {
     int headlessFrames = -1;
     int typeDelayFrames = 60;
     bool green = false;
+    bool crt = false;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -80,6 +83,8 @@ int main(int argc, char* argv[]) {
             typeDelayFrames = std::atoi(argv[++i]);
         } else if (arg == "--green") {
             green = true;
+        } else if (arg == "--crt") {
+            crt = true;
         } else if (arg == "--load-state" && i + 1 < argc) {
             loadStatePath = argv[++i];
         } else if (arg == "--save-state" && i + 1 < argc) {
@@ -107,6 +112,8 @@ int main(int argc, char* argv[]) {
     }
     if (green) emulator.setMonochrome(true);  // otherwise the saved preference applies
     if (std::string dir = findFile(kDriveImagesDir); !dir.empty()) emulator.loadDriveImages(dir);
+    if (std::string dir = findFile(kMonitorImageDir); !dir.empty()) emulator.loadMonitorImage(dir);
+    if (crt) emulator.setCrt(true);
     if (std::string videoRom = findFile(kVideoRom); !videoRom.empty()) emulator.loadCharacterRom(videoRom);
     for (int drive = 0; drive < 2; drive++) {
         if (diskPaths[drive].empty()) continue;

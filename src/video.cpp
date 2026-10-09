@@ -134,8 +134,19 @@ void VideoController::renderFrame() {
 }
 
 void VideoController::draw(SDL_Renderer* renderer, const SDL_Rect& dst) {
+    SDL_RenderCopy(renderer, frameTexture(), nullptr, &dst);
+}
+
+SDL_Texture* VideoController::frameTexture() {
     SDL_UpdateTexture(m_texture, nullptr, m_framebuffer.data(), kWidth * sizeof(uint32_t));
-    SDL_RenderCopy(renderer, m_texture, nullptr, &dst);
+    return m_texture;
+}
+
+SDL_Texture* VideoController::createFrameTexture(SDL_Renderer* renderer) const {
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
+                                             SDL_TEXTUREACCESS_STATIC, kWidth, kHeight);
+    if (texture) SDL_UpdateTexture(texture, nullptr, m_framebuffer.data(), kWidth * sizeof(uint32_t));
+    return texture;
 }
 
 uint32_t VideoController::foreground() const {

@@ -1,5 +1,10 @@
 #include "apple2e.h"
 
+#ifdef HAVE_SDL_IMAGE
+#include <SDL_image.h>
+#endif
+
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -38,6 +43,9 @@ Apple2e::Apple2e()
 }
 
 Apple2e::~Apple2e() {
+  m_crtDisplay.reset();
+  if (m_bezel)
+    SDL_FreeSurface(m_bezel);
   if (m_hasDisk2)
     m_disk2.flush();
   if (m_renderer)
@@ -75,6 +83,8 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
       m_hasDisk2 ? &m_disk2 : nullptr, m_video, kPanelX, kLogicalHeight);
   m_sidePanel->setEjectAction([this] { m_driveSounds.playEject(); });
   m_sidePanel->setDriveSounds(&m_driveSounds);
+  m_sidePanel->setCrtActions([this] { return m_crt; },
+                             [this] { setCrt(!m_crt); });
   m_sidePanel->setStateActions(
       [this](const std::string &path) { saveStateTo(path); },
       [this](const std::string &path) { loadStateFrom(path); });
@@ -141,22 +151,97 @@ std::string Apple2e::insertDisk(int drive, const std::string &path) {
 }
 
 bool Apple2e::saveScreenshot(const std::string &path) const {
-  SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
-      0, kLogicalWidth, kLogicalHeight, 32, SDL_PIXELFORMAT_ARGB8888);
+  SDL_Point size = logicalSize();
+  SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, size.x, size.y, 32,
+                                                        SDL_PIXELFORMAT_ARGB8888);
   if (!surface)
     return false;
 
-  SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 0, 0, 0));
-  m_video.copyToSurface(surface, kScreenRect.x, kScreenRect.y);
+  // Same drawing as the window, with a software renderer on the surface
+  bool ok = false;
   if (SDL_Renderer *renderer = SDL_CreateSoftwareRenderer(surface)) {
-    m_sidePanel->draw(renderer);
-    SDL_RenderPresent(renderer);
+    SDL_Texture *frame = m_video.createFrameTexture(renderer);
+    if (frame) {
+      std::unique_ptr<CrtDisplay> crt;
+      if (m_crt)
+        crt = std::make_unique<CrtDisplay>(renderer, m_bezel);
+      compose(renderer, frame, crt.get());
+      SDL_RenderPresent(renderer);
+      crt.reset();
+      SDL_DestroyTexture(frame);
+      ok = SDL_SaveBMP(surface, path.c_str()) == 0;
+    }
     SDL_DestroyRenderer(renderer);
   }
-
-  bool ok = SDL_SaveBMP(surface, path.c_str()) == 0;
   SDL_FreeSurface(surface);
   return ok;
+}
+
+// ============================================================
+// Monitor style
+// ============================================================
+
+SDL_Rect Apple2e::screenRect() const {
+  return m_crt ? CrtDisplay::kPicture : kScreenRect;
+}
+
+int Apple2e::panelX() const { return m_crt ? CrtDisplay::kWidth : kPanelX; }
+
+SDL_Point Apple2e::logicalSize() const {
+  if (m_crt)
+    return {CrtDisplay::kWidth + SidePanel::kWidth, CrtDisplay::kHeight};
+  return {kLogicalWidth, kLogicalHeight};
+}
+
+void Apple2e::compose(SDL_Renderer *renderer, SDL_Texture *frame,
+                      CrtDisplay *crt) const {
+  SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+  SDL_RenderClear(renderer);
+  if (m_crt && crt && crt->ok()) {
+    crt->draw(frame, {0, 0}, m_video.monochrome());
+  } else {
+    SDL_RenderCopy(renderer, frame, nullptr, &kScreenRect);
+  }
+  m_sidePanel->draw(renderer);
+}
+
+void Apple2e::setCrt(bool on) {
+  SDL_Point oldSize = logicalSize();
+  m_crt = on;
+  SDL_Point size = logicalSize();
+  m_sidePanel->setGeometry(panelX(), size.y);
+  if (!m_window || !m_renderer)
+    return;
+
+  // Keep the current zoom, within the usable area of the window's display
+  int w, h;
+  SDL_GetWindowSize(m_window, &w, &h);
+  float zoom = static_cast<float>(w) / oldSize.x;
+  SDL_Rect usable;
+  if (SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(m_window), &usable) == 0) {
+    zoom = std::min({zoom, usable.w * 0.95f / size.x, usable.h * 0.95f / size.y});
+  }
+  SDL_RenderSetLogicalSize(m_renderer, size.x, size.y);
+  SDL_SetWindowSize(m_window, static_cast<int>(size.x * zoom),
+                    static_cast<int>(size.y * zoom));
+}
+
+bool Apple2e::loadMonitorImage(const std::string &directory) {
+#ifdef HAVE_SDL_IMAGE
+  std::string path =
+      (std::filesystem::path(directory) / "monitor2.png").string();
+  SDL_Surface *image = IMG_Load(path.c_str());
+  if (!image)
+    return false;
+  if (m_bezel)
+    SDL_FreeSurface(m_bezel);
+  m_bezel = image;
+  m_crtDisplay.reset(); // remade with the artwork on the next frame
+  return true;
+#else
+  (void)directory;
+  return false;
+#endif
 }
 
 void Apple2e::reset(bool coldStart) {
@@ -301,6 +386,7 @@ void Apple2e::quickLoad() {
 
 void Apple2e::applySettings() {
   m_video.setMonochrome(m_settings.greenMonitor);
+  setCrt(m_settings.crtMonitor); // before the window size, which was saved for it
   m_driveSounds.setEnabled(m_settings.driveSounds);
   m_driveSounds.setMotorVolume(m_settings.motorVolume / 100.0f);
   m_driveSounds.setHeadVolume(m_settings.headVolume / 100.0f);
@@ -326,6 +412,7 @@ void Apple2e::saveSettings() {
   if (m_settingsPath.empty() || !m_window)
     return;
   m_settings.greenMonitor = m_video.monochrome();
+  m_settings.crtMonitor = m_crt;
   m_settings.driveSounds = m_driveSounds.enabled();
   m_settings.motorVolume =
       static_cast<int>(m_driveSounds.motorVolume() * 100 + 0.5f);
@@ -402,6 +489,10 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
       quickLoad();
       return;
     }
+    if ((mod & KMOD_GUI) && key == SDLK_m) {
+      setCrt(!m_crt);
+      return;
+    }
     if ((mod & KMOD_GUI) && key == SDLK_g) {
       m_video.setMonochrome(!m_video.monochrome());
       return;
@@ -419,7 +510,7 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
   // Once software enables the mouse card, the host mouse drives it (and the
   // pointer is hidden over the screen, the Apple draws its own cursor);
   // otherwise it acts as paddles/buttons
-  const SDL_Rect screen = kScreenRect;
+  const SDL_Rect screen = screenRect();
   if (event.type == SDL_MOUSEMOTION) {
     SDL_Point p = {event.motion.x, event.motion.y};
     bool overScreen = SDL_PointInRect(&p, &screen);
@@ -436,7 +527,8 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
 void Apple2e::run() {
   std::cout << "F12: RESET   Shift+F12: reboot   Cmd+1/Cmd+2: insert disk   "
                "Cmd+D: drive sounds on/off\n"
-               "Cmd+G: colour/green monitor   Cmd+S/Cmd+L: save/load state "
+               "Cmd+G: colour/green monitor   Cmd+M: CRT on/off   "
+               "Cmd+S/Cmd+L: save/load state "
                "(add Shift to choose the file)   "
                "Cmd+V: paste   Cmd+Q: quit\n";
 
@@ -455,10 +547,9 @@ void Apple2e::run() {
     m_sidePanel->update();
 
     runFrame();
-    SDL_SetRenderDrawColor(m_renderer, 0, 0, 0, 255);
-    SDL_RenderClear(m_renderer);
-    m_video.draw(m_renderer, kScreenRect);
-    m_sidePanel->draw(m_renderer);
+    if (m_crt && !m_crtDisplay)
+      m_crtDisplay = std::make_unique<CrtDisplay>(m_renderer, m_bezel);
+    compose(m_renderer, m_video.frameTexture(), m_crtDisplay.get());
     SDL_RenderPresent(m_renderer);
 
     // Pace to the real machine's ~59.92 Hz frame rate

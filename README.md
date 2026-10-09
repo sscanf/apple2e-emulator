@@ -11,6 +11,8 @@ Enhanced Apple IIe emulator in C++20 with SDL2.
 - Microsoft SoftCard (Z80) in slot 5 for CP/M; the Z80 passes ZEXDOC and ZEXALL
 - Paddles/joystick via the mouse or a game controller
 - Colour or green-phosphor monitor (switch in the side panel, Cmd+G or `--green`)
+- Apple Monitor II look: curved glowing CRT with scanlines in the monitor's case
+  (CRT box in the side panel, Cmd+M or `--crt`)
 - Disk II controller in slot 6 with two drives (.dsk/.do/.po/.nib, read and write),
   shown in a side panel; boots DOS 3.3 and ProDOS
 
@@ -45,6 +47,7 @@ also works from inside `build/`.
 | Cmd+1 / Cmd+2 | Insert a disk in drive 1 / 2 |
 | Cmd+D | Drive sounds on/off |
 | Cmd+G | Colour / green monitor |
+| Cmd+M | Apple Monitor II (CRT) look on / off |
 | Cmd+S / Cmd+L | Save / load state (quick slot) |
 | Cmd+Shift+S / Cmd+Shift+L | Save state as / load state from a file |
 | Cmd+V | Paste text |
@@ -96,12 +99,13 @@ States are tied to the emulator build that wrote them (format version 1).
 
 ### Settings
 
-The monitor type, drive sounds on/off and their motor/head volumes, the
-folders the disk and save state dialogs open in, and the window size and
-position are restored from the last session. They are saved on exit to
-`settings.ini` in the per-user settings folder (`~/Library/Application
-Support/apple2e-emulator/Apple IIe/` on macOS); delete it to go back to the
-defaults. `--green` overrides the saved monitor for that run.
+The monitor type (colour/green, CRT), drive sounds on/off and their
+motor/head volumes, the folders the disk and save state dialogs open in, and
+the window size and position are restored from the last session. They are
+saved on exit to `settings.ini` in the per-user settings folder
+(`~/Library/Application Support/apple2e-emulator/Apple IIe/` on macOS);
+delete it to go back to the defaults. `--green` overrides the saved monitor
+for that run.
 
 ### Character ROM
 
@@ -139,12 +143,21 @@ with DIR, STAT, PIP, Turbo Pascal and WordStar). Programs that need an
 Note that SoftCard CP/M translates some control keys for the Apple II+
 keyboard (for example CTRL-K types `[`); its CONFIGIO utility changes that.
 
+### CRT monitor
+
+With *CRT* ticked (Cmd+M), the screen is drawn as an Apple Monitor II: the
+picture sits on a slightly curved, dark teal glass with phosphor glow,
+scanlines on the lit dots, darker edges and a soft reflection, inside the
+monitor's beige case (`assets/monitor/`, rendered from its SVG like the drive
+pictures). The effects use the GPU through SDL's renderer. Without SDL2_image
+the case is drawn as a plain frame.
+
 ### Drive pictures
 
 `assets/drives/` holds a picture of each drive in three states (door open
 when empty, closed with a disk, and running with the activity light on).
 They are rendered from the SVG drawings in `assets/drives/src/` with
-`tools/render_drives.sh`, which uses headless Google Chrome because the
+`tools/render_assets.sh`, which uses headless Google Chrome because the
 drawings use text and filters; run it again after editing an SVG.
 
 ### Drive sounds

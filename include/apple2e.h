@@ -2,6 +2,7 @@
 
 #include "audio.h"
 #include "cpu.h"
+#include "crt.h"
 #include "disk2.h"
 #include "sidepanel.h"
 #include "softcard.h"
@@ -37,6 +38,12 @@ public:
 
     // Colour or green-phosphor monitor
     void setMonochrome(bool on) { m_video.setMonochrome(on); }
+
+    // Apple Monitor II look (CRT effects in the monitor's case) or a flat screen
+    void setCrt(bool on);
+    bool crt() const { return m_crt; }
+    // Monitor case artwork for the CRT look (monitor2.png in `directory`)
+    bool loadMonitorImage(const std::string& directory);
 
     // Pictures of the disk drives for the side panel (see SidePanel)
     bool loadDriveImages(const std::string& directory) { return m_sidePanel->loadDriveImages(directory); }
@@ -75,6 +82,12 @@ public:
 
 private:
     void runFrame();
+    // Draw screen (flat or CRT) and side panel with `renderer`
+    void compose(SDL_Renderer* renderer, SDL_Texture* frame, CrtDisplay* crt) const;
+    // Screen, panel and window size for the current monitor style
+    SDL_Rect screenRect() const;
+    int panelX() const;
+    SDL_Point logicalSize() const;
     void writeState(StateWriter& w) const;
     void readState(StateReader& r);
     void quickSave();
@@ -99,6 +112,9 @@ private:
     Disk2Controller m_disk2;
     bool m_hasDisk2 = false;
     std::unique_ptr<SidePanel> m_sidePanel;
+    bool m_crt = false;
+    SDL_Surface* m_bezel = nullptr;               // monitor case artwork
+    std::unique_ptr<CrtDisplay> m_crtDisplay;     // for the window's renderer
     DriveSounds m_driveSounds;
     bool m_driveSoundsLoaded = false;
 
