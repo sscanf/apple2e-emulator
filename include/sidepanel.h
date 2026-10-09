@@ -25,7 +25,7 @@ public:
     SidePanel(Disk2Controller* controller, VideoController& video, int x, int height);
     ~SidePanel();
 
-    // Pictures of the drives (open / closed / running, for drive 1 and 2) from
+    // Pictures of the drives (open / closed, light off / on, for drive 1 and 2) from
     // `directory`; without them the drives are drawn with plain shapes.
     // Returns false if they could not be loaded (or PNG support is missing).
     bool loadDriveImages(const std::string& directory);
@@ -135,9 +135,10 @@ private:
     };
     std::vector<Slider> m_sliders;
 
-    // Drive pictures: [drive][open, closed, running]. Textures belong to the
-    // main renderer; other renderers (screenshots) get temporary ones.
-    enum DriveLook { kOpen, kClosed, kRunning, kLooks };
+    // Drive pictures: [drive][look]. The light shows the motor, so an empty
+    // drive can be running too. Textures belong to the main renderer; other
+    // renderers (screenshots) get temporary ones.
+    enum DriveLook { kOpen, kClosed, kRunning, kOpenRunning, kLooks };
     SDL_Surface* m_driveImages[2][kLooks] = {};
     mutable SDL_Texture* m_driveTextures[2][kLooks] = {};
     SDL_Renderer* m_mainRenderer = nullptr;
