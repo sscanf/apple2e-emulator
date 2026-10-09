@@ -12,6 +12,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 find_package(SDL2 REQUIRED)
+# Optional: PNG pictures of the disk drives in the side panel
+find_package(SDL2_image QUIET)
 
 # Emulator core, shared by the app and the tests
 add_library(apple2e_core STATIC
@@ -33,6 +35,12 @@ add_library(apple2e_core STATIC
 )
 target_include_directories(apple2e_core PUBLIC include)
 target_link_libraries(apple2e_core PUBLIC SDL2::SDL2)
+if(SDL2_image_FOUND)
+    target_link_libraries(apple2e_core PUBLIC SDL2_image::SDL2_image)
+    target_compile_definitions(apple2e_core PUBLIC HAVE_SDL_IMAGE)
+else()
+    message(STATUS "SDL2_image not found: drives are drawn without pictures")
+endif()
 target_compile_options(apple2e_core PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>
 )

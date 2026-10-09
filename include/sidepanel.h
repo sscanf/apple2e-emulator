@@ -23,6 +23,14 @@ public:
 
     // `controller` may be null when no Disk II ROM is available
     SidePanel(Disk2Controller* controller, VideoController& video, int x, int height);
+    ~SidePanel();
+
+    // Pictures of the drives (open / closed / running, for drive 1 and 2) from
+    // `directory`; without them the drives are drawn with plain shapes.
+    // Returns false if they could not be loaded (or PNG support is missing).
+    bool loadDriveImages(const std::string& directory);
+    // Renderer whose textures are kept between frames (the window's)
+    void setMainRenderer(SDL_Renderer* renderer) { m_mainRenderer = renderer; }
 
     void draw(SDL_Renderer* renderer) const;
 
@@ -71,6 +79,8 @@ private:
     void insert(int drive, const std::string& path);
     void eject(int drive);
     void drawDrive(SDL_Renderer* renderer, int drive) const;
+    bool drawDriveImage(SDL_Renderer* renderer, int drive, const SDL_Rect& dst) const;
+    void drawDriveShapes(SDL_Renderer* renderer, int drive, int x, int y) const;
     SDL_Rect monitorSwitchRect() const;
     SDL_Rect stateButtonRect(int index) const;  // 0 save, 1 load
     SDL_Rect sliderRect(int index) const;       // 0 motor, 1 head (whole row)
@@ -99,6 +109,13 @@ private:
     bool m_messageIsError = true;
     std::function<void()> m_onEject;
     DriveSounds* m_sounds = nullptr;
+
+    // Drive pictures: [drive][open, closed, running]. Textures belong to the
+    // main renderer; other renderers (screenshots) get temporary ones.
+    enum DriveLook { kOpen, kClosed, kRunning, kLooks };
+    SDL_Surface* m_driveImages[2][kLooks] = {};
+    mutable SDL_Texture* m_driveTextures[2][kLooks] = {};
+    SDL_Renderer* m_mainRenderer = nullptr;
     int m_draggedSlider = -1;
     std::function<void(const std::string&)> m_onSaveState;
     std::function<void(const std::string&)> m_onLoadState;

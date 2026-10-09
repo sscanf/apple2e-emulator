@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
+<title id="title">Apple Disk II — puerta abierta y luz apagada</title>
+<desc id="desc">Vista frontal inspirada en la fotografía de ReActiveMicro: marco beige estrecho, frontal negro, ranura horizontal, pestaña central levantada, piloto apagado y logotipo Apple multicolor a la derecha.</desc>
+<defs>
+ <linearGradient id="rim" x2="0" y2="1"><stop stop-color="#eee9d4"/><stop offset=".45" stop-color="#b3ac93"/><stop offset="1" stop-color="#ded8bd"/></linearGradient>
+ <linearGradient id="black" x2=".7" y2="1"><stop stop-color="#30312c"/><stop offset="1" stop-color="#171b18"/></linearGradient>
+ <linearGradient id="handle" x2="0" y2="1"><stop stop-color="#30312b"/><stop offset=".66" stop-color="#292b24"/><stop offset="1" stop-color="#36382e"/></linearGradient>
+ <radialGradient id="lamp"><stop stop-color="#ffffeb"/><stop offset=".55" stop-color="#f8ffd1"/><stop offset=".8" stop-color="#d2ed97"/><stop offset="1" stop-color="#7d9c49"/></radialGradient>
+ <radialGradient id="glow"><stop stop-color="#a9e44d" stop-opacity=".5"/><stop offset="1" stop-color="#a9e44d" stop-opacity="0"/></radialGradient>
+ <filter id="texture"><feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".075"/></feComponentTransfer><feBlend in="SourceGraphic" mode="soft-light"/></filter>
+ <clipPath id="apple"><path d="M54 40C38 28 17 35 11 53C3 77 18 111 33 117C41 120 45 113 54 113C63 113 68 120 76 116C88 111 97 96 100 86C81 78 80 58 99 49C89 33 71 30 56 40ZM55 30C53 15 64 4 79 1C80 15 70 29 55 30Z"/></clipPath>
+</defs>
+<!-- Borde fino de la carcasa -->
+<rect x="20" y="20" width="960" height="580" rx="13" fill="url(#rim)" stroke="#999681" stroke-width="3"/>
+<rect x="29" y="29" width="942" height="562" rx="10" fill="none" stroke="#faf5e3" stroke-width="3"/>
+<rect x="40" y="40" width="920" height="540" rx="7" fill="url(#black)" stroke="#716f61" stroke-width="4"/>
+<!-- Superficie superior y etiqueta de unidad -->
+<path d="M47 47H953V226H620V90H380V226H47Z" fill="#2b2c26" filter="url(#texture)"/>
+<path d="M49 48H218V218Q218 227 210 227H49" fill="#31322c" stroke="#1b1e18" stroke-width="2"/>
+<text x="77" y="144" fill="#dadbd0" font-family="Arial, Helvetica, sans-serif" font-size="19" letter-spacing="3">DRIVE</text>
+<text x="165" y="153" fill="#e5e6dc" font-family="Arial, Helvetica, sans-serif" font-size="48">1</text>
+<!-- Ouverture horizontale -->
+<path d="M62 241H938V314H62Z" fill="#111610" stroke="#3d4034" stroke-width="3"/>
+<path d="M66 245H934L908 263H91Z" fill="#3b3d32"/>
+<path d="M90 264H910V291H90Z" fill="#060b07"/>
+<path d="M68 309L91 291H909L934 309Z" fill="#282e24"/>
+<path d="M934 245L911 266V287L934 307Z" fill="#68695a"/>
+<path d="M92 295H905" stroke="#484d3d" stroke-width="2"/>
+<!-- Renfoncement sous la languette -->
+<path d="M378 292H622V449Q622 458 613 458H387Q378 458 378 449Z" fill="#0d120e" stroke="#5b5c4e" stroke-width="2"/>
+<path d="M384 305H616V448H384Z" fill="#101610"/>
+<!-- Puerta levantada: alojamiento superior, bisagra y cara inferior -->
+<path d="M380 90H620V244H380Z" fill="#121710" stroke="#11160f" stroke-width="3"/>
+<path d="M395 106H605V229H395Z" fill="#20251c"/>
+<path d="M410 137H590V209H410Z" fill="#0c120d"/>
+<path d="M387 207H613V226H387Z" fill="#737765"/>
+<path d="M394 212H606" stroke="#a1a38f" stroke-width="3"/>
+<!-- Paso del disquete continuo, sin pestaña delante -->
+<path d="M360 264H642V291H360Z" fill="#060b07"/>
+<path d="M360 295H642" stroke="#484d3d" stroke-width="2"/>
+<!-- Pestaña en posición abierta, proyectada hacia delante -->
+<path d="M380 98H620L634 184L620 198H380L366 184Z" fill="#151a12" stroke="#0b100a" stroke-width="3" stroke-linejoin="round"/>
+<path d="M380 98H620L630 177H370Z" fill="url(#handle)" stroke="#414637" stroke-width="2" filter="url(#texture)"/>
+<path d="M370 178H630V187H370Z" fill="#464b3b"/>
+<path d="M382 191H618" stroke="#666c55" stroke-width="2"/>
+<path d="M396 110H604L610 163H390Z" fill="#252b20" stroke="#171d13" stroke-width="2"/>
+<path d="M401 115H599" stroke="#525947" stroke-width="2"/>
+<!-- Marquage et voyant circulaire -->
+<text x="77" y="443" fill="#d7d9cd" font-family="Arial, Helvetica, sans-serif" font-size="17" letter-spacing="1">IN USE</text>
+<path d="M154 423L179 438L154 453Z" fill="#e2e4d7"/>
+<circle cx="218" cy="436" r="24" fill="#151912" stroke="#535647" stroke-width="2"/>
+<circle cx="218" cy="436" r="19" fill="#394334"/>
+<ellipse cx="212" cy="430" rx="8" ry="5" fill="#68715b" opacity=".4"/>
+<text x="78" y="537" fill="#f0f0e6" font-family="Arial, Helvetica, sans-serif" font-size="60" font-weight="900" letter-spacing="-3">disk ][</text>
+<!-- Emblème multicolore à droite -->
+<g transform="translate(704 371) scale(1.45)" clip-path="url(#apple)">
+<path fill="#5e9750" d="M0 0H110V44H0Z"/><path fill="#d8bd50" d="M0 44H110V59H0Z"/><path fill="#d58b42" d="M0 59H110V74H0Z"/><path fill="#ba5147" d="M0 74H110V89H0Z"/><path fill="#96557e" d="M0 89H110V104H0Z"/><path fill="#477f9e" d="M0 104H110V125H0Z"/>
+</g>
+<path d="M47 580H190M815 580H953" stroke="#f0e8cf" stroke-width="5"/>
+</svg>

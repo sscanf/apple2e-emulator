@@ -15,6 +15,7 @@ constexpr const char* kVideoRom = "video.rom";  // optional character generator
 
 constexpr const char* kSoundsDir = "sounds";              // your own recordings (not in git)
 constexpr const char* kBundledSoundsDir = "assets/sounds"; // shipped with the repository
+constexpr const char* kDriveImagesDir = "assets/drives";
 
 // Look for a support file or folder in the current directory, next to the
 // executable, and one level above it (the project root for build/ trees).
@@ -105,6 +106,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     if (green) emulator.setMonochrome(true);  // otherwise the saved preference applies
+    if (std::string dir = findFile(kDriveImagesDir); !dir.empty()) emulator.loadDriveImages(dir);
     if (std::string videoRom = findFile(kVideoRom); !videoRom.empty()) emulator.loadCharacterRom(videoRom);
     for (int drive = 0; drive < 2; drive++) {
         if (diskPaths[drive].empty()) continue;

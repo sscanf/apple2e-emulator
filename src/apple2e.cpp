@@ -115,6 +115,7 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
       return false;
     }
     SDL_RenderSetLogicalSize(m_renderer, kLogicalWidth, kLogicalHeight);
+    m_sidePanel->setMainRenderer(m_renderer);
     m_audio.init();
     SDL_StartTextInput();
     applySettings();
