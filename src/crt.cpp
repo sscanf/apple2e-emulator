@@ -97,10 +97,10 @@ SDL_Texture* CrtDisplay::makeOverlay(int w, int h, bool reflection) {
                 float dx = (nx - 0.42f) / 0.30f, dy = (ny + 0.42f) / 0.22f;
                 float core = std::exp(-(dx * dx + dy * dy) * 2.0f);
                 float wide = std::exp(-(dx * dx + dy * dy) * 0.35f);
-                a = 34.0f * core + 10.0f * wide;
+                a = 9.0f * core + 3.0f * wide;
             } else {
                 float r2 = nx * nx * 0.85f + ny * ny;
-                a = 170.0f * std::pow(std::min(1.0f, r2 / 1.85f), 2.2f);
+                a = 110.0f * std::pow(std::min(1.0f, r2 / 2.0f), 3.0f);
             }
             Uint8 alpha = static_cast<Uint8>(std::clamp(a, 0.0f, 255.0f));
             Uint8 c = reflection ? 255 : 0;
@@ -176,11 +176,9 @@ void CrtDisplay::draw(SDL_Texture* frame, SDL_Point origin, bool green) {
     SDL_SetTextureBlendMode(m_glowSmall, SDL_BLENDMODE_ADD);
 
     SDL_SetRenderTarget(r, m_glass);
-    auto grow = [](SDL_Rect rect, int by) { return SDL_Rect{rect.x - by, rect.y - by, rect.w + 2 * by, rect.h + 2 * by}; };
-    SDL_Rect small = grow(kPictureInGlass, 6 * kScale);
-    SDL_Rect tiny = grow(kPictureInGlass, 14 * kScale);
-    SDL_RenderCopy(r, m_glowSmall, nullptr, &small);
-    SDL_RenderCopy(r, m_glowTiny, nullptr, &tiny);
+    // Exactly over the picture: the downsampling is what blurs it
+    SDL_RenderCopy(r, m_glowSmall, nullptr, &kPictureInGlass);
+    SDL_RenderCopy(r, m_glowTiny, nullptr, &kPictureInGlass);
 
     SDL_Color glass = green ? kGlassGreen : kGlassColour;
     SDL_BlendMode drawBlend;
