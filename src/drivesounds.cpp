@@ -28,7 +28,7 @@ constexpr SoundSet kSoundSets[] = {
     // The recordings bundled in assets/sounds; they peak at about 0.016
     // (motor), 0.05 (steps) and 0.55 (grind)
     {"Spin_Sound.wav", {"Read_1_Sound.wav", "Read_2_Sound.wav"},
-     {"Grunt_Grind_1_Sound.wav", "Grunt_Grind_2_Sound.wav"}, "Floppy_Eject_Sound.wav", 4.0f, 2.0f, 0.35f, 0.35f},
+     {"Grunt_Grind_1_Sound.wav", "Grunt_Grind_2_Sound.wav"}, "Floppy_Eject_Sound.wav", 4.0f, 2.0f, 0.35f, 0.7f},
     // Generic names for user-supplied recordings, played at their own level
     {"motor.wav", {"step1.wav", "step2.wav"}, {"grind.wav", nullptr}, "eject.wav", 1.0f, 1.0f, 1.0f, 1.0f},
 };
