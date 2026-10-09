@@ -160,6 +160,11 @@ SDL_Rect SidePanel::monitorSwitchRect() const {
     return {m_x + 8, m_height - 82, kBodyWidth, 14};
 }
 
+SDL_Rect SidePanel::crtCheckboxRect() const {
+    SDL_Rect sw = monitorSwitchRect();
+    return {sw.x + 108, sw.y, 36, sw.h};
+}
+
 SDL_Rect SidePanel::stateButtonRect(int index) const {
     return {m_x + 8 + index * 76, m_height - 104, 68, 15};
 }
@@ -277,6 +282,11 @@ bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
 
     if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
         SDL_Point p = {event.button.x, event.button.y};
+        SDL_Rect crt = crtCheckboxRect();
+        if (SDL_PointInRect(&p, &crt)) {
+            if (m_toggleCrt) m_toggleCrt();
+            return true;
+        }
         SDL_Rect sw = monitorSwitchRect();
         if (SDL_PointInRect(&p, &sw)) {
             m_video.setMonochrome(!m_video.monochrome());
@@ -451,7 +461,13 @@ void SidePanel::drawMonitorSwitch(SDL_Renderer* r) const {
     fill(r, {x + 37, y + 3, 26, 9}, kSwitchTrack);
     fill(r, {green ? x + 51 : x + 37, y + 3, 12, 9}, green ? kGreenText : kSwitchKnob);
     drawText(r, x + 70, y + 4, "GREEN", green ? kGreenText : kDimText);
-    drawText(r, x + 112, y + 4, "Cmd+G", kDimText);
+
+    // CRT checkbox
+    SDL_Rect box = crtCheckboxRect();
+    bool crt = m_crtIsOn && m_crtIsOn();
+    fill(r, {box.x, box.y + 3, 9, 9}, kBodyEdge);
+    fill(r, {box.x + 1, box.y + 4, 7, 7}, crt ? kGreenText : kSwitchTrack);
+    drawText(r, box.x + 13, y + 4, "CRT", crt ? kText : kDimText);
 }
 
 // "Motor [====|----] 80%" and "Head ..." rows

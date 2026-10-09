@@ -20,6 +20,7 @@ add_library(apple2e_core STATIC
     src/apple2e.cpp
     src/audio.cpp
     src/cpu.cpp
+    src/crt.cpp
     src/disk2.cpp
     src/drivesounds.cpp
     src/gameio.cpp

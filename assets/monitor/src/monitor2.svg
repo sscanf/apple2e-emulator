@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="690" height="512" viewBox="0 0 690 512">
+<title>Apple Monitor II front (emulator bezel)</title>
+<!-- The tube opening (transparent) is the rounded rectangle x=41 y=40
+     w=608 h=432 rx=30; the emulator draws the CRT glass under it. -->
+<defs>
+  <linearGradient id="case" x2="0" y2="1">
+    <stop offset="0" stop-color="#e4dec8"/><stop offset=".5" stop-color="#d8d2bb"/><stop offset="1" stop-color="#cbc5ad"/>
+  </linearGradient>
+  <linearGradient id="top" x2="0" y2="1">
+    <stop offset="0" stop-color="#8a8673"/><stop offset="1" stop-color="#66634f"/>
+  </linearGradient>
+  <linearGradient id="bottom" x2="0" y2="1">
+    <stop offset="0" stop-color="#c9c3ab"/><stop offset="1" stop-color="#dcd6bf"/>
+  </linearGradient>
+  <linearGradient id="left" x2="1" y2="0">
+    <stop offset="0" stop-color="#b6b099"/><stop offset="1" stop-color="#a09b83"/>
+  </linearGradient>
+  <linearGradient id="right" x2="1" y2="0">
+    <stop offset="0" stop-color="#a7a28a"/><stop offset="1" stop-color="#c0baa2"/>
+  </linearGradient>
+  <mask id="tube">
+    <rect width="690" height="512" fill="white"/>
+    <rect x="41" y="40" width="608" height="432" rx="30" fill="black"/>
+  </mask>
+</defs>
+<g mask="url(#tube)">
+  <!-- Case front: a thin beige border -->
+  <rect width="690" height="512" rx="6" fill="url(#case)"/>
+  <rect x="1" y="1" width="688" height="510" rx="6" fill="none" stroke="#f3eedb" stroke-width="2"/>
+  <!-- Recessed bezel: edge of the opening in the case -->
+  <rect x="14" y="14" width="662" height="484" rx="4" fill="#a8a28b"/>
+  <rect x="13" y="13" width="664" height="486" rx="5" fill="none" stroke="#f1ecd8" stroke-width="1.5"/>
+  <!-- Funnel faces down to the tube: shaded top, lit bottom -->
+  <path d="M15 15H675L647 38H43Z" fill="url(#top)"/>
+  <path d="M15 497H675L647 474H43Z" fill="url(#bottom)"/>
+  <path d="M15 15L43 38V474L15 497Z" fill="url(#left)"/>
+  <path d="M675 15L647 38V474L675 497Z" fill="url(#right)"/>
+  <path d="M15 15L43 38M675 15L647 38M15 497L43 474M675 497L647 474" stroke="#7d7965" stroke-width="1" opacity=".6"/>
+  <!-- Notched tabs with arrows, top and bottom centre -->
+  <g transform="translate(345 26) scale(.7)">
+    <rect x="-17" y="-9" width="34" height="18" rx="2" fill="#c8c2aa" stroke="#7a7663" stroke-width="1.5"/>
+    <path d="M-9 -4H9L0 4Z" fill="none" stroke="#5e5b4c" stroke-width="1.5"/>
+    <path d="M-9 5H9" stroke="#5e5b4c" stroke-width="1.5"/>
+  </g>
+  <g transform="translate(345 486) scale(.7)">
+    <rect x="-17" y="-9" width="34" height="18" rx="2" fill="#d6d0b8" stroke="#8c8873" stroke-width="1.5"/>
+    <path d="M-9 4H9L0 -4Z" fill="none" stroke="#6b6857" stroke-width="1.5"/>
+    <path d="M-9 -5H9" stroke="#6b6857" stroke-width="1.5"/>
+  </g>
+  <!-- Dark rim of the tube -->
+  <rect x="37" y="36" width="616" height="440" rx="34" fill="#141815"/>
+  <rect x="37" y="36" width="616" height="440" rx="34" fill="none" stroke="#2b302a" stroke-width="1.5"/>
+</g>
+</svg>

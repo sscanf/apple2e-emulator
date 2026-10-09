@@ -8,6 +8,7 @@ namespace apple2e {
 // per-user settings folder (~/Library/Application Support/... on macOS)
 struct Settings {
     bool greenMonitor = false;
+    bool crtMonitor = false;  // Apple Monitor II with CRT effects
     bool driveSounds = true;
     int motorVolume = 100;  // percent
     int headVolume = 100;
