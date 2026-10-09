@@ -149,7 +149,8 @@ With *CRT* ticked (Cmd+M), the screen is drawn as an Apple Monitor II: the
 picture sits on a slightly curved, dark teal glass with phosphor glow,
 scanlines on the lit dots, darker edges and a soft reflection, inside the
 monitor's beige case (`assets/monitor/`, rendered from its SVG like the drive
-pictures). The effects use the GPU through SDL's renderer. Without SDL2_image
+pictures). The *Curve* slider, shown in this mode, sets how curved the glass
+is, from flat to about three times the default. The effects use the GPU through SDL's renderer. Without SDL2_image
 the case is drawn as a plain frame.
 
 ### Drive pictures

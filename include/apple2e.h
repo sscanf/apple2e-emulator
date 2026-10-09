@@ -42,6 +42,10 @@ public:
     // Apple Monitor II look (CRT effects in the monitor's case) or a flat screen
     void setCrt(bool on);
     bool crt() const { return m_crt; }
+    // Curvature of the CRT glass, 0 (flat) to kMaxCurvature
+    static constexpr float kMaxCurvature = 0.10f;
+    void setCurvature(float curvature);
+    float curvature() const { return m_curvature; }
     // Monitor case artwork for the CRT look (monitor2.png in `directory`)
     bool loadMonitorImage(const std::string& directory);
 
@@ -113,6 +117,7 @@ private:
     bool m_hasDisk2 = false;
     std::unique_ptr<SidePanel> m_sidePanel;
     bool m_crt = false;
+    float m_curvature = 0.03f;
     SDL_Surface* m_bezel = nullptr;               // monitor case artwork
     std::unique_ptr<CrtDisplay> m_crtDisplay;     // for the window's renderer
     DriveSounds m_driveSounds;

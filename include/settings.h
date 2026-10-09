@@ -9,6 +9,7 @@ namespace apple2e {
 struct Settings {
     bool greenMonitor = false;
     bool crtMonitor = false;  // Apple Monitor II with CRT effects
+    int crtCurvature = 30;    // percent of the maximum glass curvature
     bool driveSounds = true;
     int motorVolume = 100;  // percent
     int headVolume = 100;
