@@ -1,7 +1,6 @@
 #include "sidepanel.h"
 
 #include "disk2.h"
-#include "drivesounds.h"
 #include "font.h"
 #include "video.h"
 
@@ -9,6 +8,7 @@
 #include <SDL_image.h>
 #endif
 
+#include <algorithm>
 #include <cstdio>
 #include <filesystem>
 #include <thread>
@@ -169,19 +169,29 @@ SDL_Rect SidePanel::stateButtonRect(int index) const {
     return {m_x + 8 + index * 76, m_height - 104, 68, 15};
 }
 
+void SidePanel::addSlider(const std::string& label, std::function<float()> get,
+                          std::function<void(float)> set, std::function<bool()> visible) {
+    m_sliders.push_back({label, std::move(get), std::move(set), std::move(visible)});
+}
+
+bool SidePanel::sliderVisible(int index) const {
+    const auto& visible = m_sliders[index].visible;
+    return !visible || visible();
+}
+
 SDL_Rect SidePanel::sliderRect(int index) const {
-    return {m_x + 8, m_height - 136 + index * 14, kBodyWidth, 12};
+    // Visible rows below this one push it up
+    int below = 0;
+    for (int i = index + 1; i < static_cast<int>(m_sliders.size()); i++) {
+        if (sliderVisible(i)) below++;
+    }
+    return {m_x + 8, m_height - 122 - below * 14, kBodyWidth, 12};
 }
 
 void SidePanel::setSliderFromX(int index, int x) {
-    if (!m_sounds) return;
     float v = static_cast<float>(x - (m_x + 8 + kSliderTrackX) - kKnobW / 2) /
               (kSliderTrackW - kKnobW);
-    if (index == 0) {
-        m_sounds->setMotorVolume(v);
-    } else {
-        m_sounds->setHeadVolume(v);
-    }
+    m_sliders[index].set(std::clamp(v, 0.0f, 1.0f));
 }
 
 SDL_Rect SidePanel::driveRect(int drive) const {
@@ -256,10 +266,11 @@ void SidePanel::update() {
 }
 
 bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
-    // Volume sliders: press anywhere on the track, drag while held
-    if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT && m_sounds) {
+    // Sliders: press anywhere on the track, drag while held
+    if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
         SDL_Point p = {event.button.x, event.button.y};
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < static_cast<int>(m_sliders.size()); i++) {
+            if (!sliderVisible(i)) continue;
             SDL_Rect row = sliderRect(i);
             SDL_Rect track = {row.x + kSliderTrackX - 4, row.y - 1, kSliderTrackW + 8, row.h + 2};
             if (SDL_PointInRect(&p, &track)) {
@@ -470,21 +481,20 @@ void SidePanel::drawMonitorSwitch(SDL_Renderer* r) const {
     drawText(r, box.x + 13, y + 4, "CRT", crt ? kText : kDimText);
 }
 
-// "Motor [====|----] 80%" and "Head ..." rows
+// "Motor [====|----] 80%" rows
 void SidePanel::drawSliders(SDL_Renderer* r) const {
-    if (!m_sounds) return;
-    const char* labels[2] = {"Motor", "Head"};
-    float values[2] = {m_sounds->motorVolume(), m_sounds->headVolume()};
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < static_cast<int>(m_sliders.size()); i++) {
+        if (!sliderVisible(i)) continue;
         SDL_Rect row = sliderRect(i);
         int trackX = row.x + kSliderTrackX;
-        drawText(r, row.x, row.y + 2, labels[i], kText);
+        float value = std::clamp(m_sliders[i].get(), 0.0f, 1.0f);
+        drawText(r, row.x, row.y + 2, m_sliders[i].label, kText);
         fill(r, {trackX, row.y + 4, kSliderTrackW, 4}, kSwitchTrack);
-        int filled = static_cast<int>(values[i] * (kSliderTrackW - kKnobW));
+        int filled = static_cast<int>(value * (kSliderTrackW - kKnobW));
         fill(r, {trackX, row.y + 4, filled + kKnobW / 2, 4}, kBodyEdge);
         fill(r, {trackX + filled, row.y + 1, kKnobW, 10}, kSwitchKnob);
         drawText(r, trackX + kSliderTrackW + 4, row.y + 2,
-                 std::to_string(static_cast<int>(values[i] * 100 + 0.5f)) + "%", kDimText);
+                 std::to_string(static_cast<int>(value * 100 + 0.5f)) + "%", kDimText);
     }
 }
 

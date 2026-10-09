@@ -6,17 +6,17 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace apple2e {
 
 class Disk2Controller;
-class DriveSounds;
 class VideoController;
 
 // Side panel next to the screen: the two Disk II drives (click an empty
 // drive to insert a disk, click a full one to eject it, or drop disk images
-// onto a drive), motor/head volume sliders, the save state buttons and the
-// colour / green monitor switch
+// onto a drive), sliders (CRT curvature, motor/head volume), the save state
+// buttons and the colour / green and CRT switches
 class SidePanel {
 public:
     static constexpr int kWidth = 160;
@@ -56,8 +56,11 @@ public:
     // Call once per frame: inserts the disk once the file dialog has closed
     void update();
 
-    // Motor and head volume sliders control these sounds
-    void setDriveSounds(DriveSounds* sounds) { m_sounds = sounds; }
+    // A slider row, value 0-1 read and written through the callbacks.
+    // `visible` may hide it (empty: always shown). Rows stack upwards above
+    // the save state buttons, the last one added at the bottom.
+    void addSlider(const std::string& label, std::function<float()> get,
+                   std::function<void(float)> set, std::function<bool()> visible = {});
 
     // Called when a disk is taken out (for the door sound)
     void setEjectAction(std::function<void()> action) { m_onEject = std::move(action); }
@@ -96,7 +99,8 @@ private:
     SDL_Rect monitorSwitchRect() const;
     SDL_Rect crtCheckboxRect() const;
     SDL_Rect stateButtonRect(int index) const;  // 0 save, 1 load
-    SDL_Rect sliderRect(int index) const;       // 0 motor, 1 head (whole row)
+    bool sliderVisible(int index) const;
+    SDL_Rect sliderRect(int index) const;  // whole row
     void setSliderFromX(int index, int x);
     void drawSliders(SDL_Renderer* renderer) const;
     void drawStateButtons(SDL_Renderer* renderer) const;
@@ -123,7 +127,13 @@ private:
     std::function<void()> m_onEject;
     std::function<bool()> m_crtIsOn;
     std::function<void()> m_toggleCrt;
-    DriveSounds* m_sounds = nullptr;
+    struct Slider {
+        std::string label;
+        std::function<float()> get;
+        std::function<void(float)> set;
+        std::function<bool()> visible;
+    };
+    std::vector<Slider> m_sliders;
 
     // Drive pictures: [drive][open, closed, running]. Textures belong to the
     // main renderer; other renderers (screenshots) get temporary ones.

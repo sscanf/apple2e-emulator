@@ -82,7 +82,15 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
   m_sidePanel = std::make_unique<SidePanel>(
       m_hasDisk2 ? &m_disk2 : nullptr, m_video, kPanelX, kLogicalHeight);
   m_sidePanel->setEjectAction([this] { m_driveSounds.playEject(); });
-  m_sidePanel->setDriveSounds(&m_driveSounds);
+  m_sidePanel->addSlider(
+      "Curve", [this] { return m_curvature / kMaxCurvature; },
+      [this](float v) { setCurvature(v * kMaxCurvature); }, [this] { return m_crt; });
+  m_sidePanel->addSlider(
+      "Motor", [this] { return m_driveSounds.motorVolume(); },
+      [this](float v) { m_driveSounds.setMotorVolume(v); });
+  m_sidePanel->addSlider(
+      "Head", [this] { return m_driveSounds.headVolume(); },
+      [this](float v) { m_driveSounds.setHeadVolume(v); });
   m_sidePanel->setCrtActions([this] { return m_crt; },
                              [this] { setCrt(!m_crt); });
   m_sidePanel->setStateActions(
@@ -163,8 +171,10 @@ bool Apple2e::saveScreenshot(const std::string &path) const {
     SDL_Texture *frame = m_video.createFrameTexture(renderer);
     if (frame) {
       std::unique_ptr<CrtDisplay> crt;
-      if (m_crt)
+      if (m_crt) {
         crt = std::make_unique<CrtDisplay>(renderer, m_bezel);
+        crt->setCurvature(m_curvature);
+      }
       compose(renderer, frame, crt.get());
       SDL_RenderPresent(renderer);
       crt.reset();
@@ -224,6 +234,12 @@ void Apple2e::setCrt(bool on) {
   SDL_RenderSetLogicalSize(m_renderer, size.x, size.y);
   SDL_SetWindowSize(m_window, static_cast<int>(size.x * zoom),
                     static_cast<int>(size.y * zoom));
+}
+
+void Apple2e::setCurvature(float curvature) {
+  m_curvature = std::clamp(curvature, 0.0f, kMaxCurvature);
+  if (m_crtDisplay)
+    m_crtDisplay->setCurvature(m_curvature);
 }
 
 bool Apple2e::loadMonitorImage(const std::string &directory) {
@@ -387,6 +403,7 @@ void Apple2e::quickLoad() {
 void Apple2e::applySettings() {
   m_video.setMonochrome(m_settings.greenMonitor);
   setCrt(m_settings.crtMonitor); // before the window size, which was saved for it
+  setCurvature(m_settings.crtCurvature / 100.0f * kMaxCurvature);
   m_driveSounds.setEnabled(m_settings.driveSounds);
   m_driveSounds.setMotorVolume(m_settings.motorVolume / 100.0f);
   m_driveSounds.setHeadVolume(m_settings.headVolume / 100.0f);
@@ -413,6 +430,8 @@ void Apple2e::saveSettings() {
     return;
   m_settings.greenMonitor = m_video.monochrome();
   m_settings.crtMonitor = m_crt;
+  m_settings.crtCurvature =
+      static_cast<int>(m_curvature / kMaxCurvature * 100 + 0.5f);
   m_settings.driveSounds = m_driveSounds.enabled();
   m_settings.motorVolume =
       static_cast<int>(m_driveSounds.motorVolume() * 100 + 0.5f);
@@ -547,8 +566,10 @@ void Apple2e::run() {
     m_sidePanel->update();
 
     runFrame();
-    if (m_crt && !m_crtDisplay)
+    if (m_crt && !m_crtDisplay) {
       m_crtDisplay = std::make_unique<CrtDisplay>(m_renderer, m_bezel);
+      m_crtDisplay->setCurvature(m_curvature);
+    }
     compose(m_renderer, m_video.frameTexture(), m_crtDisplay.get());
     SDL_RenderPresent(m_renderer);
 

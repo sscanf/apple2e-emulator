@@ -39,6 +39,7 @@ void Settings::load(const std::string& path) {
 
         if (key == "monitor") greenMonitor = value == "green";
         else if (key == "crt") crtMonitor = value == "on";
+        else if (key == "crt_curvature") toInt(crtCurvature);
         else if (key == "drive_sounds") driveSounds = value != "off";
         else if (key == "motor_volume") toInt(motorVolume);
         else if (key == "head_volume") toInt(headVolume);
@@ -55,6 +56,7 @@ bool Settings::save(const std::string& path) const {
     std::ofstream file(path, std::ios::trunc);
     file << "monitor=" << (greenMonitor ? "green" : "color") << '\n'
          << "crt=" << (crtMonitor ? "on" : "off") << '\n'
+         << "crt_curvature=" << crtCurvature << '\n'
          << "drive_sounds=" << (driveSounds ? "on" : "off") << '\n'
          << "motor_volume=" << motorVolume << '\n'
          << "head_volume=" << headVolume << '\n'

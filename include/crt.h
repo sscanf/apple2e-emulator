@@ -30,6 +30,9 @@ public:
     // False if the renderer lacks what the effect needs (render targets)
     bool ok() const { return m_glass != nullptr; }
 
+    // Barrel distortion of the glass: 0 is flat (default 0.03)
+    void setCurvature(float curvature);
+
     // Draw the monitor with its top-left at `origin`. `frame` is the Apple
     // display texture (560x192); `green` selects the green phosphor glass.
     void draw(SDL_Texture* frame, SDL_Point origin, bool green);
@@ -47,6 +50,7 @@ private:
     SDL_Texture* m_vignette = nullptr;
     SDL_Texture* m_reflection = nullptr;
 
+    float m_curvature = 0.03f;
     std::vector<SDL_Vertex> m_vertices;  // curved glass, at origin (0, 0)
     std::vector<int> m_indices;
 };

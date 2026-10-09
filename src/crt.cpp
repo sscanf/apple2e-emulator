@@ -13,7 +13,6 @@ constexpr int kGlassH = CrtDisplay::kGlass.h * kScale;
 constexpr SDL_Rect kPictureInGlass = {CrtDisplay::kMargin * kScale, CrtDisplay::kMargin * kScale,
                                       560 * kScale, 384 * kScale};
 
-constexpr float kCurvature = 0.03f;  // barrel distortion strength (subtle, as on the real tube)
 constexpr int kMeshX = 32, kMeshY = 24;
 
 // Unlit glass: the green phosphor tube has a dark teal faceplate
@@ -120,6 +119,12 @@ SDL_Texture* CrtDisplay::makeOverlay(int w, int h, bool reflection) {
 // The glass is drawn as a grid whose texture coordinates follow a barrel
 // distortion: straight lines of the picture bow outwards, and the picture's
 // corners stay at the glass corners
+void CrtDisplay::setCurvature(float curvature) {
+    if (curvature == m_curvature) return;
+    m_curvature = curvature;
+    buildMesh();
+}
+
 void CrtDisplay::buildMesh() {
     m_vertices.clear();
     m_indices.clear();
@@ -128,7 +133,7 @@ void CrtDisplay::buildMesh() {
             float u = static_cast<float>(i) / kMeshX;
             float v = static_cast<float>(j) / kMeshY;
             float nx = 2 * u - 1, ny = 2 * v - 1;
-            float f = (1 + kCurvature * (nx * nx + ny * ny)) / (1 + 2 * kCurvature);
+            float f = (1 + m_curvature * (nx * nx + ny * ny)) / (1 + 2 * m_curvature);
             SDL_Vertex vert;
             vert.position = {kGlass.x + u * kGlass.w, kGlass.y + v * kGlass.h};
             vert.color = {255, 255, 255, 255};
