@@ -28,6 +28,13 @@ public:
     // Disk taken out of a drive (plays right away; user action, not CPU-timed)
     void playEject();
 
+    // Volume (0-1) of the motor hum and of the head (steps and recalibration
+    // grind); applied while mixing, so playing sounds follow changes at once
+    float motorVolume() const { return m_motorVolume; }
+    float headVolume() const { return m_headVolume; }
+    void setMotorVolume(float v) { m_motorVolume = v < 0 ? 0 : (v > 1 ? 1 : v); }
+    void setHeadVolume(float v) { m_headVolume = v < 0 ? 0 : (v > 1 ? 1 : v); }
+
     // Add drive sounds to `n` samples whose first sample is at CPU cycle `startCycle`
     void mix(float* buffer, size_t n, double startCycle, double cyclesPerSample);
 
@@ -38,6 +45,7 @@ private:
         const Sample* sample;
         size_t position;
         int delay;  // samples to wait before starting
+        bool head;  // follows the head volume
     };
 
     struct PendingEvent {
@@ -45,10 +53,12 @@ private:
         uint64_t cycle;
     };
 
-    void start(const Sample& sample, int delay);
+    void start(const Sample& sample, int delay, bool head);
     bool grindPlaying() const;
 
     bool m_enabled = true;
+    float m_motorVolume = 1.0f;
+    float m_headVolume = 1.0f;
     bool m_motorOn = false;
 
     Sample m_spin;  // seamless loop

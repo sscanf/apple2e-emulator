@@ -10,11 +10,13 @@
 namespace apple2e {
 
 class Disk2Controller;
+class DriveSounds;
 class VideoController;
 
 // Side panel next to the screen: the two Disk II drives (click an empty
 // drive to insert a disk, click a full one to eject it, or drop disk images
-// onto a drive), the save state buttons and the colour / green monitor switch
+// onto a drive), motor/head volume sliders, the save state buttons and the
+// colour / green monitor switch
 class SidePanel {
 public:
     static constexpr int kWidth = 160;
@@ -33,6 +35,9 @@ public:
 
     // Call once per frame: inserts the disk once the file dialog has closed
     void update();
+
+    // Motor and head volume sliders control these sounds
+    void setDriveSounds(DriveSounds* sounds) { m_sounds = sounds; }
 
     // Called when a disk is taken out (for the door sound)
     void setEjectAction(std::function<void()> action) { m_onEject = std::move(action); }
@@ -68,6 +73,9 @@ private:
     void drawDrive(SDL_Renderer* renderer, int drive) const;
     SDL_Rect monitorSwitchRect() const;
     SDL_Rect stateButtonRect(int index) const;  // 0 save, 1 load
+    SDL_Rect sliderRect(int index) const;       // 0 motor, 1 head (whole row)
+    void setSliderFromX(int index, int x);
+    void drawSliders(SDL_Renderer* renderer) const;
     void drawStateButtons(SDL_Renderer* renderer) const;
     void drawMonitorSwitch(SDL_Renderer* renderer) const;
 
@@ -90,6 +98,8 @@ private:
     std::string m_message;  // last status or error, shown at the bottom
     bool m_messageIsError = true;
     std::function<void()> m_onEject;
+    DriveSounds* m_sounds = nullptr;
+    int m_draggedSlider = -1;
     std::function<void(const std::string&)> m_onSaveState;
     std::function<void(const std::string&)> m_onLoadState;
 };
