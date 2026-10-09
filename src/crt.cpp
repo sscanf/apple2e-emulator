@@ -18,7 +18,7 @@ constexpr int kMeshX = 32, kMeshY = 24;
 // Unlit glass: the green phosphor tube has a dark teal faceplate
 constexpr SDL_Color kGlassGreen = {0x0B, 0x20, 0x1A, 0xFF};
 constexpr SDL_Color kGlassColour = {0x10, 0x12, 0x11, 0xFF};
-constexpr SDL_Color kCase = {0xD8, 0xD2, 0xBB, 0xFF};
+constexpr SDL_Color kCase = {0x40, 0x41, 0x43, 0xFF};
 constexpr SDL_Color kRim = {0x14, 0x18, 0x15, 0xFF};
 
 // Bloom: alpha of the two blurred copies added over the picture
