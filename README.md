@@ -94,12 +94,12 @@ States are tied to the emulator build that wrote them (format version 1).
 
 ### Settings
 
-The monitor type, drive sounds on/off, the folders the disk and save state
-dialogs open in, and the window size and position are restored from the last session. They
-are saved on exit to `settings.ini` in the per-user settings folder
-(`~/Library/Application Support/apple2e-emulator/Apple IIe/` on macOS);
-delete it to go back to the defaults. `--green` overrides the saved monitor
-for that run.
+The monitor type, drive sounds on/off and their motor/head volumes, the
+folders the disk and save state dialogs open in, and the window size and
+position are restored from the last session. They are saved on exit to
+`settings.ini` in the per-user settings folder (`~/Library/Application
+Support/apple2e-emulator/Apple IIe/` on macOS); delete it to go back to the
+defaults. `--green` overrides the saved monitor for that run.
 
 ### Character ROM
 
@@ -144,6 +144,10 @@ click on each head step, the grind of the head hitting the track 0 stop and
 the door when a disk is ejected.
 The repository includes recordings of a real Disk II (see
 [assets/sounds](assets/sounds/README.md) about their origin).
+
+The *Motor* and *Head* sliders in the side panel set the volume of the motor
+hum and of the head (steps and recalibration grind); Cmd+D mutes all drive
+sounds.
 
 To use your own, put them in a `sounds/` folder (same places as the ROMs; it is
 ignored by git and takes priority), either with the same file names or as

@@ -114,12 +114,12 @@ bool DriveSounds::load(const std::string& directory, int sampleRate) {
 }
 
 void DriveSounds::playEject() {
-    if (m_enabled && !m_eject.empty()) start(m_eject, 0);
+    if (m_enabled && !m_eject.empty()) start(m_eject, 0, false);
 }
 
-void DriveSounds::start(const Sample& sample, int delay) {
+void DriveSounds::start(const Sample& sample, int delay, bool head) {
     if (m_voices.size() >= kMaxVoices) m_voices.erase(m_voices.begin());
-    m_voices.push_back({&sample, 0, delay});
+    m_voices.push_back({&sample, 0, delay, head});
 }
 
 bool DriveSounds::grindPlaying() const {
@@ -138,10 +138,10 @@ void DriveSounds::mix(float* buffer, size_t n, double startCycle, double cyclesP
         if (!m_enabled) continue;
 
         if (it->event == Event::Step && !m_steps.empty()) {
-            start(m_steps[m_nextStep++ % m_steps.size()], delay);
+            start(m_steps[m_nextStep++ % m_steps.size()], delay, true);
         } else if (it->event == Event::Bump && !m_grinds.empty() && !grindPlaying()) {
             // Repeated bumps (recalibration) keep one grind going rather than stacking
-            start(m_grinds[m_nextGrind++ % m_grinds.size()], delay);
+            start(m_grinds[m_nextGrind++ % m_grinds.size()], delay, true);
         }
     }
     m_events.erase(m_events.begin(), due);
@@ -155,7 +155,7 @@ void DriveSounds::mix(float* buffer, size_t n, double startCycle, double cyclesP
             m_spinLevel = std::max(0.0f, m_spinLevel - kSpinFadePerSample);
         }
         if (m_spinLevel > 0) {
-            buffer[i] += m_spin[m_spinPosition] * m_spinLevel;
+            buffer[i] += m_spin[m_spinPosition] * m_spinLevel * m_motorVolume;
             m_spinPosition = (m_spinPosition + 1) % m_spin.size();
         }
 
@@ -164,7 +164,7 @@ void DriveSounds::mix(float* buffer, size_t n, double startCycle, double cyclesP
             if (voice.delay > 0) {
                 voice.delay--;
             } else if (voice.position < voice.sample->size()) {
-                buffer[i] += (*voice.sample)[voice.position++];
+                buffer[i] += (*voice.sample)[voice.position++] * (voice.head ? m_headVolume : 1.0f);
             }
         }
     }

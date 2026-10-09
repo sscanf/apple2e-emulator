@@ -9,6 +9,8 @@ namespace apple2e {
 struct Settings {
     bool greenMonitor = false;
     bool driveSounds = true;
+    int motorVolume = 100;  // percent
+    int headVolume = 100;
     std::string diskDirectory;   // where the disk file dialog opens
     std::string stateDirectory;  // where the save state dialogs open
     int windowX = 0, windowY = 0, windowW = 0, windowH = 0;  // size 0: default

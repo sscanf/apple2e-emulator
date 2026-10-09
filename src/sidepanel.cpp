@@ -1,6 +1,7 @@
 #include "sidepanel.h"
 
 #include "disk2.h"
+#include "drivesounds.h"
 #include "font.h"
 #include "video.h"
 
@@ -15,7 +16,10 @@ namespace {
 
 constexpr int kCharWidth = 6;
 constexpr int kDriveTop = 16;
-constexpr int kDriveSpacing = 156;
+constexpr int kDriveSpacing = 136;
+constexpr int kSliderTrackX = 36;  // offset of the slider track in its row
+constexpr int kSliderTrackW = 68;
+constexpr int kKnobW = 6;
 constexpr int kBodyWidth = 144;
 constexpr int kBodyHeight = 92;
 constexpr int kNameChars = kBodyWidth / kCharWidth;
@@ -149,11 +153,26 @@ SidePanel::SidePanel(Disk2Controller* controller, VideoController& video, int x,
     : m_controller(controller), m_video(video), m_x(x), m_height(height) {}
 
 SDL_Rect SidePanel::monitorSwitchRect() const {
-    return {m_x + 8, m_height - 86, kBodyWidth, 14};
+    return {m_x + 8, m_height - 82, kBodyWidth, 14};
 }
 
 SDL_Rect SidePanel::stateButtonRect(int index) const {
-    return {m_x + 8 + index * 76, m_height - 110, 68, 15};
+    return {m_x + 8 + index * 76, m_height - 104, 68, 15};
+}
+
+SDL_Rect SidePanel::sliderRect(int index) const {
+    return {m_x + 8, m_height - 136 + index * 14, kBodyWidth, 12};
+}
+
+void SidePanel::setSliderFromX(int index, int x) {
+    if (!m_sounds) return;
+    float v = static_cast<float>(x - (m_x + 8 + kSliderTrackX) - kKnobW / 2) /
+              (kSliderTrackW - kKnobW);
+    if (index == 0) {
+        m_sounds->setMotorVolume(v);
+    } else {
+        m_sounds->setHeadVolume(v);
+    }
 }
 
 SDL_Rect SidePanel::driveRect(int drive) const {
@@ -228,6 +247,30 @@ void SidePanel::update() {
 }
 
 bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
+    // Volume sliders: press anywhere on the track, drag while held
+    if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT && m_sounds) {
+        SDL_Point p = {event.button.x, event.button.y};
+        for (int i = 0; i < 2; i++) {
+            SDL_Rect row = sliderRect(i);
+            SDL_Rect track = {row.x + kSliderTrackX - 4, row.y - 1, kSliderTrackW + 8, row.h + 2};
+            if (SDL_PointInRect(&p, &track)) {
+                m_draggedSlider = i;
+                setSliderFromX(i, p.x);
+                return true;
+            }
+        }
+    }
+    if (m_draggedSlider >= 0) {
+        if (event.type == SDL_MOUSEMOTION) {
+            setSliderFromX(m_draggedSlider, event.motion.x);
+            return true;
+        }
+        if (event.type == SDL_MOUSEBUTTONUP && event.button.button == SDL_BUTTON_LEFT) {
+            m_draggedSlider = -1;
+            return true;
+        }
+    }
+
     if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT) {
         SDL_Point p = {event.button.x, event.button.y};
         SDL_Rect sw = monitorSwitchRect();
@@ -342,6 +385,24 @@ void SidePanel::drawMonitorSwitch(SDL_Renderer* r) const {
     drawText(r, x + 112, y + 4, "Cmd+G", kDimText);
 }
 
+// "Motor [====|----] 80%" and "Head ..." rows
+void SidePanel::drawSliders(SDL_Renderer* r) const {
+    if (!m_sounds) return;
+    const char* labels[2] = {"Motor", "Head"};
+    float values[2] = {m_sounds->motorVolume(), m_sounds->headVolume()};
+    for (int i = 0; i < 2; i++) {
+        SDL_Rect row = sliderRect(i);
+        int trackX = row.x + kSliderTrackX;
+        drawText(r, row.x, row.y + 2, labels[i], kText);
+        fill(r, {trackX, row.y + 4, kSliderTrackW, 4}, kSwitchTrack);
+        int filled = static_cast<int>(values[i] * (kSliderTrackW - kKnobW));
+        fill(r, {trackX, row.y + 4, filled + kKnobW / 2, 4}, kBodyEdge);
+        fill(r, {trackX + filled, row.y + 1, kKnobW, 10}, kSwitchKnob);
+        drawText(r, trackX + kSliderTrackW + 4, row.y + 2,
+                 std::to_string(static_cast<int>(values[i] * 100 + 0.5f)) + "%", kDimText);
+    }
+}
+
 void SidePanel::drawStateButtons(SDL_Renderer* r) const {
     const char* labels[2] = {"Save as...", "Load..."};
     for (int i = 0; i < 2; i++) {
@@ -356,8 +417,9 @@ void SidePanel::draw(SDL_Renderer* r) const {
     fill(r, {m_x, 0, kWidth, m_height}, kPanelBg);
     drawMonitorSwitch(r);
     drawStateButtons(r);
+    drawSliders(r);
 
-    int y = m_height - 64;
+    int y = m_height - 60;
     for (const auto& line : wrap(m_message, kNameChars - 2, 2)) {
         drawText(r, m_x + 8, y, line, m_messageIsError ? kErrorText : kGreenText);
         y += 10;
@@ -371,9 +433,8 @@ void SidePanel::draw(SDL_Renderer* r) const {
 
     for (int d = 0; d < Disk2Controller::kDrives; d++) drawDrive(r, d);
 
-    drawText(r, m_x + 8, m_height - 34, "Click empty drive: insert", kDimText);
-    drawText(r, m_x + 8, m_height - 24, "Click full drive: eject", kDimText);
-    drawText(r, m_x + 8, m_height - 14, "Or drop a file here", kDimText);
+    drawText(r, m_x + 8, m_height - 24, "Click: insert or eject", kDimText);
+    drawText(r, m_x + 8, m_height - 14, "Or drop a disk on it", kDimText);
 }
 
 } // namespace apple2e

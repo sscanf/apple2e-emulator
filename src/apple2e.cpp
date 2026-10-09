@@ -74,6 +74,7 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
   m_sidePanel = std::make_unique<SidePanel>(
       m_hasDisk2 ? &m_disk2 : nullptr, m_video, kPanelX, kLogicalHeight);
   m_sidePanel->setEjectAction([this] { m_driveSounds.playEject(); });
+  m_sidePanel->setDriveSounds(&m_driveSounds);
   m_sidePanel->setStateActions(
       [this](const std::string &path) { saveStateTo(path); },
       [this](const std::string &path) { loadStateFrom(path); });
@@ -300,6 +301,8 @@ void Apple2e::quickLoad() {
 void Apple2e::applySettings() {
   m_video.setMonochrome(m_settings.greenMonitor);
   m_driveSounds.setEnabled(m_settings.driveSounds);
+  m_driveSounds.setMotorVolume(m_settings.motorVolume / 100.0f);
+  m_driveSounds.setHeadVolume(m_settings.headVolume / 100.0f);
   m_sidePanel->setLastDirectory(m_settings.diskDirectory);
   m_sidePanel->setLastStateDirectory(m_settings.stateDirectory);
 
@@ -323,6 +326,10 @@ void Apple2e::saveSettings() {
     return;
   m_settings.greenMonitor = m_video.monochrome();
   m_settings.driveSounds = m_driveSounds.enabled();
+  m_settings.motorVolume =
+      static_cast<int>(m_driveSounds.motorVolume() * 100 + 0.5f);
+  m_settings.headVolume =
+      static_cast<int>(m_driveSounds.headVolume() * 100 + 0.5f);
   m_settings.diskDirectory = m_sidePanel->lastDirectory();
   m_settings.stateDirectory = m_sidePanel->lastStateDirectory();
   SDL_GetWindowPosition(m_window, &m_settings.windowX, &m_settings.windowY);
