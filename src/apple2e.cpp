@@ -73,6 +73,7 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
 
   m_sidePanel = std::make_unique<SidePanel>(
       m_hasDisk2 ? &m_disk2 : nullptr, m_video, kPanelX, kLogicalHeight);
+  m_sidePanel->setEjectAction([this] { m_driveSounds.playEject(); });
   m_sidePanel->setStateActions(
       [this](const std::string &path) { saveStateTo(path); },
       [this](const std::string &path) { loadStateFrom(path); });

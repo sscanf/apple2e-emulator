@@ -176,7 +176,9 @@ void SidePanel::insert(int drive, const std::string& path) {
 }
 
 void SidePanel::eject(int drive) {
+    if (!m_controller->disk(drive).loaded()) return;
     showMessage(m_controller->eject(drive), true);
+    if (m_onEject) m_onEject();
 }
 
 void SidePanel::chooseDisk(int drive) {
@@ -246,7 +248,15 @@ bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
     if (event.type == SDL_MOUSEBUTTONDOWN) {
         int drive = driveAt(event.button.x, event.button.y);
         if (drive < 0) return false;
-        if (event.button.button == SDL_BUTTON_LEFT) chooseDisk(drive);
+        // A full drive is emptied by a click; an empty one asks for a disk
+        bool full = m_controller->disk(drive).loaded();
+        if (event.button.button == SDL_BUTTON_LEFT) {
+            if (full) {
+                eject(drive);
+            } else {
+                chooseDisk(drive);
+            }
+        }
         if (event.button.button == SDL_BUTTON_RIGHT) eject(drive);
         return true;
     }
@@ -361,8 +371,8 @@ void SidePanel::draw(SDL_Renderer* r) const {
 
     for (int d = 0; d < Disk2Controller::kDrives; d++) drawDrive(r, d);
 
-    drawText(r, m_x + 8, m_height - 34, "Click: insert disk", kDimText);
-    drawText(r, m_x + 8, m_height - 24, "Right-click: eject", kDimText);
+    drawText(r, m_x + 8, m_height - 34, "Click empty drive: insert", kDimText);
+    drawText(r, m_x + 8, m_height - 24, "Click full drive: eject", kDimText);
     drawText(r, m_x + 8, m_height - 14, "Or drop a file here", kDimText);
 }
 

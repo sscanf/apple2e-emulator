@@ -12,9 +12,9 @@ namespace apple2e {
 class Disk2Controller;
 class VideoController;
 
-// Side panel next to the screen: the two Disk II drives (click a drive to
-// insert a disk, right-click to eject, or drop disk images onto it) and the
-// colour / green monitor switch
+// Side panel next to the screen: the two Disk II drives (click an empty
+// drive to insert a disk, click a full one to eject it, or drop disk images
+// onto a drive), the save state buttons and the colour / green monitor switch
 class SidePanel {
 public:
     static constexpr int kWidth = 160;
@@ -33,6 +33,9 @@ public:
 
     // Call once per frame: inserts the disk once the file dialog has closed
     void update();
+
+    // Called when a disk is taken out (for the door sound)
+    void setEjectAction(std::function<void()> action) { m_onEject = std::move(action); }
 
     // Choose a save state file to save to / load from (file dialog in the
     // background, like chooseDisk); the chosen path goes to the state actions
@@ -86,6 +89,7 @@ private:
     std::string m_lastStateDirectory;
     std::string m_message;  // last status or error, shown at the bottom
     bool m_messageIsError = true;
+    std::function<void()> m_onEject;
     std::function<void(const std::string&)> m_onSaveState;
     std::function<void(const std::string&)> m_onLoadState;
 };
