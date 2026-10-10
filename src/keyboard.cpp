@@ -30,6 +30,7 @@ void KeyboardController::queueText(const std::string& text) {
 }
 
 void KeyboardController::update() {
+    if (m_scriptedOpenApple > 0) m_scriptedOpenApple--;
     if (m_pauseFrames > 0) {
         m_pauseFrames--;
         return;
@@ -39,7 +40,11 @@ void KeyboardController::update() {
         m_pending.pop_front();
         if (ch == kPauseChar) {
             m_pauseFrames = kPauseFrames;
+        } else if (ch == kOpenAppleChar) {
+            m_nextKeyOpenApple = true;
         } else {
+            if (m_nextKeyOpenApple) m_scriptedOpenApple = 10;  // held while software reads it
+            m_nextKeyOpenApple = false;
             press(ch);
         }
     }
@@ -50,6 +55,17 @@ void KeyboardController::handleEvent(const SDL_Event& event) {
         case SDL_TEXTINPUT: {
             SDL_Keymod mod = SDL_GetModState();
             if (mod & (KMOD_CTRL | KMOD_GUI)) break;  // handled as key events
+            bool ascii = true;
+            for (const char* p = event.text.text; *p; ++p) {
+                if (static_cast<uint8_t>(*p) >= 0x80) ascii = false;
+            }
+            if (m_optionKey) {
+                // Option+key: macOS made it a character the Apple lacks (e.g.
+                // Option+Q -> "oe"), so send the key itself with Open Apple held
+                if (!ascii) press(m_optionKey);
+                m_optionKey = 0;
+                if (!ascii) break;
+            }
             for (const char* p = event.text.text; *p; ++p) {
                 uint8_t ch = static_cast<uint8_t>(*p);
                 if (ch >= 0x80) continue;  // non-ASCII has no Apple equivalent
@@ -83,11 +99,27 @@ void KeyboardController::handleEvent(const SDL_Event& event) {
             // CTRL+letter produces control codes $01-$1A
             if ((mod & KMOD_CTRL) && key >= SDLK_a && key <= SDLK_z) {
                 press(static_cast<uint8_t>(key - SDLK_a + 1));
+                break;
+            }
+
+            // Option (Open/Solid Apple) + printable key: decided when macOS
+            // reports the text it made of it (or on key-up for dead keys)
+            if ((mod & KMOD_ALT) && key >= SDLK_SPACE && key <= SDLK_z && !event.key.repeat) {
+                uint8_t base = static_cast<uint8_t>(key);
+                bool upper = (mod & (KMOD_SHIFT | KMOD_CAPS)) != 0;
+                if (base >= 'a' && base <= 'z' && upper) base -= 0x20;
+                m_optionKey = base;
+                m_optionKeycode = key;
             }
             break;
         }
 
         case SDL_KEYUP:
+            // Dead keys (e.g. Option+E) produce no text: send the key anyway
+            if (m_optionKey && event.key.keysym.sym == m_optionKeycode) {
+                press(m_optionKey);
+                m_optionKey = 0;
+            }
             if (event.key.keysym.sym == SDLK_LALT) m_openApple = false;
             if (event.key.keysym.sym == SDLK_RALT) m_solidApple = false;
             if (m_keysHeld > 0) m_keysHeld--;

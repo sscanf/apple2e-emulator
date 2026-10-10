@@ -52,7 +52,8 @@ void usage(const char* argv0) {
               << "  --save-state FILE   with --headless, save the state at the end\n"
               << "  --headless FRAMES   run without a window and print the text screen\n"
               << "  --type TEXT         type TEXT one second after boot (newlines become RETURN,\n"
-              << "                      \\x10 pauses half a second)\n"
+              << "                      \\x10 pauses half a second, \\x11 holds Open Apple\n"
+              << "                      for the next key)\n"
               << "  --type-delay FRAMES frames to wait before typing (default 60; 60 per second)\n"
               << "  --screenshot FILE   with --headless, also save the final frame as BMP\n";
 }
