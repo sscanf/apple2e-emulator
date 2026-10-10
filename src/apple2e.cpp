@@ -75,7 +75,9 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
                                 cycle);
         });
   } else {
-    std::cerr << "No Disk II ROM (disk2.rom): running without disk drives"
+    std::cerr << "No Disk II ROM (disk2.rom): running without disk drives. "
+                 "Put it in the current directory, next to the executable or "
+                 "in a folder above it"
               << std::endl;
   }
 

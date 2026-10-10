@@ -1,6 +1,7 @@
 #define SDL_MAIN_HANDLED
 #include "apple2e.h"
 
+#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -19,21 +20,36 @@ constexpr const char* kDriveImagesDir = "assets/drives";
 constexpr const char* kMonitorImageDir = "assets/monitor";
 
 // Look for a support file or folder in the current directory, next to the
-// executable, and one level above it (the project root for build/ trees).
-// Empty if absent.
+// executable, and up to three levels above it (the project root for build/
+// trees like build/ or build/Release/). The name is matched ignoring case,
+// since Linux file systems are case sensitive and ROM dumps are often named
+// DISK2.ROM. Empty if absent.
 std::string findFile(const std::string& name) {
     namespace fs = std::filesystem;
-    std::vector<fs::path> candidates = {name};
+    std::vector<fs::path> dirs = {fs::current_path()};
     if (char* base = SDL_GetBasePath()) {
-        fs::path exeDir(base);  // ends with a separator, so parent_path() is the dir itself
+        fs::path dir = fs::path(base).parent_path();  // drop the trailing separator
         SDL_free(base);
-        candidates.push_back(exeDir / name);
-        candidates.push_back(exeDir.parent_path().parent_path() / name);
+        for (int up = 0; up <= 3 && !dir.empty(); up++, dir = dir.parent_path()) {
+            dirs.push_back(dir);
+            if (dir == dir.root_path()) break;
+        }
     }
 
+    auto lower = [](std::string s) {
+        for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return s;
+    };
+    // Names with a folder ("assets/sounds") are matched exactly
+    bool plain = name.find('/') == std::string::npos;
+
     std::error_code ec;
-    for (const auto& path : candidates) {
-        if (fs::exists(path, ec)) return path.string();
+    for (const auto& dir : dirs) {
+        if (fs::path path = dir / name; fs::exists(path, ec)) return path.string();
+        if (!plain) continue;
+        for (const auto& entry : fs::directory_iterator(dir, ec)) {
+            if (lower(entry.path().filename().string()) == lower(name)) return entry.path().string();
+        }
     }
     return {};
 }
