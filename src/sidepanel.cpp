@@ -334,7 +334,7 @@ bool SidePanel::handleEvent(const SDL_Event& event, SDL_Renderer* renderer) {
         int gx, gy, wx, wy;
         float lx, ly;
         SDL_GetGlobalMouseState(&gx, &gy);
-        SDL_GetWindowPosition(SDL_RenderGetWindow(renderer), &wx, &wy);
+        SDL_GetWindowPosition(SDL_GetWindowFromID(event.drop.windowID), &wx, &wy);
         SDL_RenderWindowToLogical(renderer, gx - wx, gy - wy, &lx, &ly);
         int drive = driveAt(static_cast<int>(lx), static_cast<int>(ly));
 

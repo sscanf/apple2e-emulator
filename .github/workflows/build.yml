@@ -16,6 +16,7 @@ env:
 
 jobs:
   linux:
+    timeout-minutes: 15
     runs-on: ubuntu-22.04  # oldest supported, so the binary runs on newer distributions too
     steps:
       - uses: actions/checkout@v4
@@ -47,15 +48,41 @@ jobs:
           path: '*.tar.gz'
 
   macos:
-    runs-on: macos-14  # Apple silicon
+    timeout-minutes: 30
+    runs-on: macos-14
+    env:
+      SDL_VERSION: 2.32.10
+      SDL_IMAGE_VERSION: 2.8.8
+      MAC_FLAGS: >-
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_OSX_ARCHITECTURES=arm64;x86_64
+        -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
     steps:
       - uses: actions/checkout@v4
-      - name: Install dependencies
-        run: brew install sdl2 sdl2_image dylibbundler
+      # SDL2 is linked statically, for both Intel and Apple silicon, so the
+      # app needs nothing installed (Homebrew's sdl2 is a wrapper around SDL3)
+      - uses: actions/cache@v4
+        id: sdl
+        with:
+          path: deps
+          key: macos-sdl-${{ env.SDL_VERSION }}-${{ env.SDL_IMAGE_VERSION }}-universal-1
+      - name: Build SDL2
+        if: steps.sdl.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 -b release-$SDL_VERSION https://github.com/libsdl-org/SDL.git sdl-src
+          cmake -S sdl-src -B sdl-build $MAC_FLAGS -DCMAKE_INSTALL_PREFIX=$PWD/deps \
+            -DSDL_SHARED=OFF -DSDL_STATIC=ON -DSDL_TEST=OFF
+          cmake --build sdl-build -j && cmake --install sdl-build
+          git clone --depth 1 -b release-$SDL_IMAGE_VERSION https://github.com/libsdl-org/SDL_image.git image-src
+          cmake -S image-src -B image-build $MAC_FLAGS -DCMAKE_INSTALL_PREFIX=$PWD/deps \
+            -DCMAKE_PREFIX_PATH=$PWD/deps -DBUILD_SHARED_LIBS=OFF -DSDL2IMAGE_SAMPLES=OFF \
+            -DSDL2IMAGE_AVIF=OFF -DSDL2IMAGE_JXL=OFF -DSDL2IMAGE_TIF=OFF -DSDL2IMAGE_WEBP=OFF
+          cmake --build image-build -j && cmake --install image-build
       - name: Build
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          cmake -B build $MAC_FLAGS -DCMAKE_PREFIX_PATH=$PWD/deps
           cmake --build build -j
+          lipo -archs build/apple2e_emulator
       - name: Package
         run: |
           version=${{ github.ref_name }}
@@ -76,24 +103,22 @@ jobs:
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>CFBundleShortVersionString</key><string>${version#v}</string>
             <key>CFBundleVersion</key><string>${{ github.run_number }}</string>
-            <key>LSMinimumSystemVersion</key><string>12.0</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
             <key>NSHighResolutionCapable</key><true/>
           </dict>
           </plist>
           PLIST
-          # Bundle SDL2 and friends so nothing has to be installed
-          dylibbundler -od -b -x "$app/Contents/MacOS/apple2e_emulator" \
-            -d "$app/Contents/libs" -p @executable_path/../libs/
           codesign --force --deep -s - "$app"
-          "$app/Contents/MacOS/apple2e_emulator" --headless 60 | tee smoke.log
+          (cd / && "$OLDPWD/$app/Contents/MacOS/apple2e_emulator" --headless 60) | tee smoke.log
           grep -q "Disk II ROM loaded" smoke.log
-          ditto -c -k --keepParent "$app" "apple2e-emulator-$version-macos-arm64.zip"
+          ditto -c -k --keepParent "$app" "apple2e-emulator-$version-macos-universal.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: macos
           path: '*.zip'
 
   windows:
+    timeout-minutes: 30
     runs-on: windows-latest
     defaults:
       run:
