@@ -12,8 +12,20 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 find_package(SDL2 REQUIRED)
-# Optional: PNG pictures of the disk drives in the side panel
+# Optional: PNG pictures of the disk drives and the monitor case.
+# SDL2_image older than 2.6 (Debian, Ubuntu 22.04) ships no CMake package,
+# only a pkg-config file
 find_package(SDL2_image QUIET)
+if(NOT SDL2_image_FOUND)
+    find_package(PkgConfig QUIET)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(SDL2_IMAGE_PC QUIET IMPORTED_TARGET SDL2_image)
+        if(SDL2_IMAGE_PC_FOUND)
+            add_library(SDL2_image::SDL2_image ALIAS PkgConfig::SDL2_IMAGE_PC)
+            set(SDL2_image_FOUND TRUE)
+        endif()
+    endif()
+endif()
 
 # Emulator core, shared by the app and the tests
 add_library(apple2e_core STATIC
@@ -40,7 +52,8 @@ if(SDL2_image_FOUND)
     target_link_libraries(apple2e_core PUBLIC SDL2_image::SDL2_image)
     target_compile_definitions(apple2e_core PUBLIC HAVE_SDL_IMAGE)
 else()
-    message(STATUS "SDL2_image not found: drives are drawn without pictures")
+    message(WARNING "SDL2_image not found: the drives and the monitor are drawn "
+                    "without pictures (install libsdl2-image-dev or SDL2_image-devel)")
 endif()
 target_compile_options(apple2e_core PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>
