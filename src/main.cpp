@@ -2,6 +2,7 @@
 #include "apple2e.h"
 
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -85,7 +86,9 @@ void usage(const char* argv0) {
               << "                      \\x10 pauses half a second, \\x11 holds Open Apple\n"
               << "                      for the next key)\n"
               << "  --type-delay FRAMES frames to wait before typing (default 60; 60 per second)\n"
-              << "  --screenshot FILE   with --headless, also save the final frame as BMP\n";
+              << "  --screenshot FILE   with --headless, also save the final frame as BMP\n"
+              << "  --record DIR        with --headless, save every other frame to DIR as\n"
+              << "                      frame00000.bmp... (30 per second, for making a video)\n";
 }
 
 } // namespace
@@ -94,6 +97,7 @@ int main(int argc, char* argv[]) {
     std::string romPath;
     std::string typed;
     std::string screenshotPath;
+    std::string recordDir;
     std::string loadStatePath;
     std::string saveStatePath;
     std::string diskPaths[2];
@@ -122,6 +126,8 @@ int main(int argc, char* argv[]) {
             saveStatePath = argv[++i];
         } else if (arg == "--screenshot" && i + 1 < argc) {
             screenshotPath = argv[++i];
+        } else if (arg == "--record" && i + 1 < argc) {
+            recordDir = argv[++i];
         } else if (arg == "-h" || arg == "--help") {
             usage(argv[0]);
             return 0;
@@ -166,7 +172,19 @@ int main(int argc, char* argv[]) {
     emulator.typeText(typed, typeDelayFrames);
 
     if (headlessFrames >= 0) {
-        emulator.runFrames(headlessFrames);
+        if (recordDir.empty()) {
+            emulator.runFrames(headlessFrames);
+        } else {
+            for (int frame = 0; frame < headlessFrames; frame += 2) {
+                emulator.runFrames(2);
+                char name[32];
+                std::snprintf(name, sizeof(name), "frame%05d.bmp", frame / 2);
+                if (!emulator.saveScreenshot((std::filesystem::path(recordDir) / name).string())) {
+                    std::cerr << "Failed to save " << name << ": " << SDL_GetError() << std::endl;
+                    return 1;
+                }
+            }
+        }
         std::cout << emulator.screenText();
         if (!saveStatePath.empty()) {
             std::string error = emulator.saveState(saveStatePath);

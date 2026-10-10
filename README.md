@@ -2,6 +2,10 @@
 
 Enhanced Apple IIe emulator in C++20 with SDL2.
 
+![Typing and running a hi-res BASIC program on the colour CRT](docs/demo.gif)
+
+(The same clip as a [video](docs/demo.mp4).)
+
 ![The emulator booting DOS 3.3 on the green-phosphor Apple Monitor II](docs/apple2.png)
 
 - 65C02 CPU, validated against Klaus Dormann's functional test suites
