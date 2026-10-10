@@ -12,10 +12,17 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 find_package(SDL2 REQUIRED)
+# A static-only SDL2 (the macOS release build) may not define SDL2::SDL2
+if(NOT TARGET SDL2::SDL2 AND TARGET SDL2::SDL2-static)
+    add_library(SDL2::SDL2 ALIAS SDL2::SDL2-static)
+endif()
 # Optional: PNG pictures of the disk drives and the monitor case.
 # SDL2_image older than 2.6 (Debian, Ubuntu 22.04) ships no CMake package,
 # only a pkg-config file
 find_package(SDL2_image QUIET)
+if(NOT TARGET SDL2_image::SDL2_image AND TARGET SDL2_image::SDL2_image-static)
+    add_library(SDL2_image::SDL2_image ALIAS SDL2_image::SDL2_image-static)
+endif()
 if(NOT SDL2_image_FOUND)
     find_package(PkgConfig QUIET)
     if(PKG_CONFIG_FOUND)
