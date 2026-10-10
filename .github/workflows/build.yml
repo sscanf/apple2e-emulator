@@ -1,0 +1,148 @@
+name: Build
+
+# Builds the emulator for Linux, macOS and Windows on every push. Pushing a
+# tag like v1.2.0 also publishes the packages as a GitHub release.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # Smoke tests run without a display or a sound card
+  SDL_VIDEODRIVER: dummy
+  SDL_AUDIODRIVER: dummy
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04  # oldest supported, so the binary runs on newer distributions too
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake pkg-config libsdl2-dev libsdl2-image-dev
+      - name: Build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j
+      - name: Package
+        run: |
+          name=apple2e-emulator-${{ github.ref_name }}-linux-x86_64
+          tools/package.sh "$name"
+          cp build/apple2e_emulator "$name/"
+          cat > "$name/INSTALL.txt" <<'TXT'
+          Needs SDL2 and SDL2_image (and zenity for the file dialogs):
+            Debian/Ubuntu: sudo apt install libsdl2-2.0-0 libsdl2-image-2.0-0 zenity
+            Fedora:        sudo dnf install SDL2 SDL2_image zenity
+          Then run ./apple2e_emulator
+          TXT
+          (cd "$name" && ./apple2e_emulator --headless 60 | tee ../smoke.log)
+          grep -q "Disk II ROM loaded" smoke.log
+          tar czf "$name.tar.gz" "$name"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: '*.tar.gz'
+
+  macos:
+    runs-on: macos-14  # Apple silicon
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: brew install sdl2 sdl2_image dylibbundler
+      - name: Build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+          cmake --build build -j
+      - name: Package
+        run: |
+          version=${{ github.ref_name }}
+          app="Apple IIe.app"
+          mkdir -p "$app/Contents/MacOS"
+          # In a bundle the emulator looks for its files in Contents/Resources
+          tools/package.sh "$app/Contents/Resources"
+          cp build/apple2e_emulator "$app/Contents/MacOS/"
+          cat > "$app/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key><string>Apple IIe</string>
+            <key>CFBundleDisplayName</key><string>Apple IIe</string>
+            <key>CFBundleIdentifier</key><string>com.github.sscanf.apple2e-emulator</string>
+            <key>CFBundleExecutable</key><string>apple2e_emulator</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleShortVersionString</key><string>${version#v}</string>
+            <key>CFBundleVersion</key><string>${{ github.run_number }}</string>
+            <key>LSMinimumSystemVersion</key><string>12.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          # Bundle SDL2 and friends so nothing has to be installed
+          dylibbundler -od -b -x "$app/Contents/MacOS/apple2e_emulator" \
+            -d "$app/Contents/libs" -p @executable_path/../libs/
+          codesign --force --deep -s - "$app"
+          "$app/Contents/MacOS/apple2e_emulator" --headless 60 | tee smoke.log
+          grep -q "Disk II ROM loaded" smoke.log
+          ditto -c -k --keepParent "$app" "apple2e-emulator-$version-macos-arm64.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: '*.zip'
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            zip
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-SDL2
+            mingw-w64-ucrt-x86_64-SDL2_image
+      - name: Build
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
+          cmake --build build
+      - name: Package
+        run: |
+          name=apple2e-emulator-${{ github.ref_name }}-windows-x86_64
+          tools/package.sh "$name"
+          cp build/apple2e_emulator.exe "$name/"
+          # The DLLs it needs (SDL2, SDL2_image and what those load)
+          ldd "$name/apple2e_emulator.exe" | awk '$3 ~ /ucrt64/ {print $3}' | xargs -I{} cp {} "$name/"
+          (cd "$name" && ./apple2e_emulator.exe --headless 60 | tee ../smoke.log)
+          grep -q "Disk II ROM loaded" smoke.log
+          zip -r "$name.zip" "$name"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: '*.zip'
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --generate-notes *.tar.gz *.zip
