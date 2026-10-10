@@ -31,16 +31,17 @@ cmake --build build -j
 
 ## Run
 
-A ROM image is needed (16 KB `$C000-$FFFF`, or a 32 KB dump whose upper half
-is that image). It is not included in the repository.
+The ROM images are in `roms/`: `apple2e.rom` (16 KB `$C000-$FFFF`, or a 32 KB
+dump whose upper half is that image), `disk2.rom` and `video.rom`.
 
 ```sh
-./build/apple2e_emulator apple2e.rom
+./build/apple2e_emulator
 ```
 
-Without a path it looks for `apple2e.rom` in the current directory, next to
-the executable and in the executable's parent folder, so `./apple2e_emulator`
-also works from inside `build/`.
+They are looked up in `roms/` (or loose) in the current directory, next to the
+executable and up to three folders above it, so `./apple2e_emulator` also
+works from inside `build/`. Another system ROM can be given as an argument:
+`./build/apple2e_emulator other.rom`.
 
 | Key | Action |
 |-----|--------|
@@ -113,8 +114,7 @@ for that run.
 
 Text uses a built-in font unless a real Apple IIe character generator ROM is
 found as `video.rom` (same places as `apple2e.rom`): 4 KB, or the 8 KB
-341-0161 with the US set in its upper half. It is not included in the
-repository.
+341-0161 with the US set in its upper half.
 
 ### Disks
 

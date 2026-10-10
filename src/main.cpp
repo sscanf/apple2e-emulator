@@ -13,6 +13,7 @@ namespace {
 constexpr const char* kDefaultRom = "apple2e.rom";
 constexpr const char* kDiskRom = "disk2.rom";
 constexpr const char* kVideoRom = "video.rom";  // optional character generator
+constexpr const char* kRomsDir = "roms";        // where the ROM images are kept
 
 constexpr const char* kSoundsDir = "sounds";              // your own recordings (not in git)
 constexpr const char* kBundledSoundsDir = "assets/sounds"; // shipped with the repository
@@ -51,11 +52,17 @@ std::string findFile(const std::string& name) {
     bool plain = name.find('/') == std::string::npos;
 
     std::error_code ec;
-    for (const auto& dir : dirs) {
-        if (fs::path path = dir / name; fs::exists(path, ec)) return path.string();
-        if (!plain) continue;
-        for (const auto& entry : fs::directory_iterator(dir, ec)) {
-            if (lower(entry.path().filename().string()) == lower(name)) return entry.path().string();
+    for (const auto& base : dirs) {
+        if (!plain) {
+            if (fs::path path = base / name; fs::exists(path, ec)) return path.string();
+            continue;
+        }
+        // ROM images live in roms/; a loose copy beside it still works
+        for (const auto& dir : {base / kRomsDir, base}) {
+            if (fs::path path = dir / name; fs::exists(path, ec)) return path.string();
+            for (const auto& entry : fs::directory_iterator(dir, ec)) {
+                if (lower(entry.path().filename().string()) == lower(name)) return entry.path().string();
+            }
         }
     }
     return {};
@@ -64,7 +71,7 @@ std::string findFile(const std::string& name) {
 void usage(const char* argv0) {
     std::cerr << "usage: " << argv0 << " [rom] [--disk1 FILE] [--disk2 FILE] [--headless FRAMES]\n"
               << "       [--type TEXT] [--screenshot FILE]\n"
-              << "  rom                 Apple IIe ROM image (default: apple2e.rom here,\n"
+              << "  rom                 Apple IIe ROM image (default: roms/apple2e.rom here,\n"
               << "                      next to the executable or in its parent folder)\n"
               << "  --disk1/--disk2 F   insert a disk image (.dsk/.do/.po/.nib) in drive 1/2;\n"
               << "                      needs disk2.rom (Disk II boot ROM), looked up like the ROM\n"
@@ -132,7 +139,7 @@ int main(int argc, char* argv[]) {
     apple2e::Apple2e emulator;
     std::string diskRom = findFile(kDiskRom);
     if (diskRom.empty()) {
-        std::cerr << kDiskRom << " not found. Looked in:\n";
+        std::cerr << kDiskRom << " not found. Looked in these folders and their " << kRomsDir << "/:\n";
         for (const auto& dir : searchDirs()) std::cerr << "  " << dir.string() << "\n";
     }
     if (!emulator.init(romPath, diskRom, headlessFrames >= 0)) {
