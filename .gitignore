@@ -1,8 +1,9 @@
 # Build output
 build/
 
-# ROM images (copyrighted Apple firmware, keep out of the repo)
+# Loose ROM images; the ones the emulator uses are kept in roms/
 *.rom
+!/roms/*.rom
 
 # macOS
 .DS_Store
