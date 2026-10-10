@@ -2,6 +2,8 @@
 
 Enhanced Apple IIe emulator in C++20 with SDL2.
 
+![The emulator booting DOS 3.3 on the green-phosphor Apple Monitor II](docs/apple2.png)
+
 - 65C02 CPU, validated against Klaus Dormann's functional test suites
 - 64 KB main + 64 KB auxiliary RAM, language card, IIe MMU soft switches
 - 40/80-column text, lo-res, hi-res, double lo-res and double hi-res, mixed
