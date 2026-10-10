@@ -53,7 +53,7 @@ also works from inside `build/`.
 | Cmd+V | Paste text |
 | Cmd+Q | Quit |
 | Caps Lock | Upper / lower case, as on the Mac (Applesoft accepts lowercase commands) |
-| Left / Right Alt | Open Apple / Solid Apple (buttons 0 / 1) |
+| Left / Right Option (Alt) | Open Apple / Solid Apple (buttons 0 / 1); Option+key sends the key with the Apple key held (e.g. Option+Q is Open-Apple-Q), unless the layout types a character with it, like `@` or `[` |
 
 ### Mouse
 
@@ -190,7 +190,8 @@ prints the text screen and optionally saves a screenshot.
 ```
 
 In `--type` text, `\x10` waits half a second before typing on, for programs
-that discard keys pressed while they load.
+that discard keys pressed while they load, and `\x11` types the next key with
+Open Apple held.
 
 ## CPU tests
 
