@@ -8,6 +8,13 @@
 #include <SDL_image.h>
 #endif
 
+#ifdef _WIN32
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <commdlg.h>
+#endif
+
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
@@ -109,6 +116,29 @@ std::string appleScriptString(const std::string& s) {
     return out + "\"";
 }
 
+#ifdef _WIN32
+// Windows common dialog. Paths are in the ANSI code page, like the ones the
+// rest of the emulator hands to the C++ file streams.
+std::string windowsFileDialog(bool save, const std::string& prompt, const std::string& directory,
+                              const std::string& defaultName) {
+    char file[MAX_PATH] = "";
+    defaultName.copy(file, sizeof(file) - 1);
+    OPENFILENAMEA ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = GetActiveWindow();
+    ofn.lpstrFilter = "All files\0*.*\0Disk images\0*.dsk;*.do;*.po;*.nib\0";
+    ofn.lpstrFile = file;
+    ofn.nMaxFile = sizeof(file);
+    ofn.lpstrTitle = prompt.c_str();
+    if (!directory.empty()) ofn.lpstrInitialDir = directory.c_str();
+    // NOCHANGEDIR: the emulator finds its files relative to the current folder
+    ofn.Flags = OFN_NOCHANGEDIR | OFN_HIDEREADONLY | OFN_PATHMUSTEXIST |
+                (save ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
+    BOOL ok = save ? GetSaveFileNameA(&ofn) : GetOpenFileNameA(&ofn);
+    return ok ? std::string(file) : std::string();
+}
+#endif
+
 // Native file chooser; returns an empty string if cancelled or unsupported.
 // Blocks until the dialog closes.
 std::string openFileDialog(const std::string& prompt, const std::string& directory) {
@@ -122,6 +152,8 @@ std::string openFileDialog(const std::string& prompt, const std::string& directo
                           " --file-filter='Disk images | *.dsk *.do *.po *.nib *.DSK *.DO *.PO *.NIB'";
     if (!directory.empty()) command += " --filename=" + shellQuote(directory + "/");
     return runCommand(command + " 2>/dev/null");
+#elif defined(_WIN32)
+    return windowsFileDialog(false, prompt, directory, {});
 #else
     (void)prompt;
     (void)directory;
@@ -143,6 +175,8 @@ std::string saveFileDialog(const std::string& prompt, const std::string& directo
     std::string start = directory.empty() ? defaultName : directory + "/" + defaultName;
     return runCommand("zenity --file-selection --save --confirm-overwrite --title=" + shellQuote(prompt) +
                       " --filename=" + shellQuote(start) + " 2>/dev/null");
+#elif defined(_WIN32)
+    return windowsFileDialog(true, prompt, directory, defaultName);
 #else
     (void)prompt;
     (void)directory;

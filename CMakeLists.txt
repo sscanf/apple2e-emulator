@@ -62,6 +62,9 @@ else()
     message(WARNING "SDL2_image not found: the drives and the monitor are drawn "
                     "without pictures (install libsdl2-image-dev or SDL2_image-devel)")
 endif()
+if(WIN32)
+    target_link_libraries(apple2e_core PUBLIC comdlg32)  # file dialogs
+endif()
 target_compile_options(apple2e_core PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>
 )
