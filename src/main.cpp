@@ -24,9 +24,10 @@ constexpr const char* kMonitorImageDir = "assets/monitor";
 // trees like build/ or build/Release/). The name is matched ignoring case,
 // since Linux file systems are case sensitive and ROM dumps are often named
 // DISK2.ROM. Empty if absent.
-std::string findFile(const std::string& name) {
+std::vector<std::filesystem::path> searchDirs() {
     namespace fs = std::filesystem;
-    std::vector<fs::path> dirs = {fs::current_path()};
+    std::error_code ec;
+    std::vector<fs::path> dirs = {fs::current_path(ec)};
     if (char* base = SDL_GetBasePath()) {
         fs::path dir = fs::path(base).parent_path();  // drop the trailing separator
         SDL_free(base);
@@ -35,6 +36,12 @@ std::string findFile(const std::string& name) {
             if (dir == dir.root_path()) break;
         }
     }
+    return dirs;
+}
+
+std::string findFile(const std::string& name) {
+    namespace fs = std::filesystem;
+    std::vector<fs::path> dirs = searchDirs();
 
     auto lower = [](std::string s) {
         for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
@@ -123,7 +130,12 @@ int main(int argc, char* argv[]) {
     if (romPath.empty()) romPath = kDefaultRom;  // let init report it missing
 
     apple2e::Apple2e emulator;
-    if (!emulator.init(romPath, findFile(kDiskRom), headlessFrames >= 0)) {
+    std::string diskRom = findFile(kDiskRom);
+    if (diskRom.empty()) {
+        std::cerr << kDiskRom << " not found. Looked in:\n";
+        for (const auto& dir : searchDirs()) std::cerr << "  " << dir.string() << "\n";
+    }
+    if (!emulator.init(romPath, diskRom, headlessFrames >= 0)) {
         std::cerr << "Failed to initialize emulator." << std::endl;
         return 1;
     }
