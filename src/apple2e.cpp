@@ -156,7 +156,7 @@ void Apple2e::loadDriveSounds(const std::string &directory) {
 
 std::string Apple2e::insertDisk(int drive, const std::string &path) {
   if (!m_hasDisk2)
-    return "No Disk II controller (disk2.rom not found)";
+    return "No Disk II controller (disk2.rom missing or bad, see the terminal)";
   return m_disk2.insert(drive, path);
 }
 
