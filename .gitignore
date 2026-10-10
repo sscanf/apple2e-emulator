@@ -13,7 +13,7 @@ build/
 *~
 
 # Drive sound samples (third-party recordings, not redistributed)
-/sounds/
+#/sounds/
 
 # Editor tooling (clangd)
 compile_commands.json
