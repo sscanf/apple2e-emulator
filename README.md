@@ -47,12 +47,14 @@ executable and up to three folders above it, so `./apple2e_emulator` also
 works from inside `build/`. Another system ROM can be given as an argument:
 `./build/apple2e_emulator other.rom`.
 
-On macOS every command is also in the menu bar.
+Every command is also in a menu: the system's menu bar on macOS, and a menu
+bar at the top of the window on Linux and Windows (F10 hides or shows it).
 
 | Key | Action |
 |-----|--------|
 | F12 | RESET (CTRL-RESET) |
 | Shift+F12 | Power cycle |
+| F10 | Hide / show the menu bar (Linux, Windows) |
 | Cmd+1 / Cmd+2 | Insert a disk in drive 1 / 2 |
 | Cmd+Shift+1 / Cmd+Shift+2 | Eject the disk in drive 1 / 2 |
 | Cmd+D | Drive sounds on/off |

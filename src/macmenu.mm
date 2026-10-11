@@ -34,6 +34,7 @@ using apple2e::Command;
     [item setState:isOn && isOn(static_cast<int>([item tag])) ? NSControlStateValueOn
                                                                : NSControlStateValueOff];
     break;
+  case Command::ToggleMenuBar: // the menu bar in the window: not on macOS
   default:
     break;
   }

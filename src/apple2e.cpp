@@ -274,21 +274,16 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
     m_audio.init();
     SDL_StartTextInput();
     applySettings();
+#ifndef __APPLE__
+    m_menuBar = std::make_unique<MenuBar>(
+        [this](Command command) { runCommand(command, true); },
+        [this](Command command) { return commandIsOn(command); });
+    m_menuBar->setVisible(m_settings.menuBar);
+#endif
 #ifdef __APPLE__
     m_menuEvent = SDL_RegisterEvents(1);
     installMacMenu(m_menuEvent, [this](int command) {
-      switch (static_cast<Command>(command)) {
-      case Command::ToggleGreen:
-        return m_video.monochrome();
-      case Command::ToggleCrt:
-        return m_crt;
-      case Command::TogglePanel:
-        return !m_panelHidden;
-      case Command::ToggleDriveSounds:
-        return m_driveSounds.enabled();
-      default:
-        return false;
-      }
+      return commandIsOn(static_cast<Command>(command));
     });
 #endif
   }
@@ -786,6 +781,8 @@ void Apple2e::saveSettings() {
   m_settings.greenMonitor = m_video.monochrome();
   m_settings.crtMonitor = m_crt;
   m_settings.sidePanel = !m_panelHidden;
+  if (m_menuBar)
+    m_settings.menuBar = m_menuBar->visible();
   m_settings.crtCurvature =
       static_cast<int>(m_curvature / kMaxCurvature * 100 + 0.5f);
   m_settings.driveSounds = m_driveSounds.enabled();
@@ -823,6 +820,24 @@ void Apple2e::runFrame() {
 void Apple2e::runFrames(int frames) {
   for (int i = 0; i < frames; i++)
     runFrame();
+}
+
+// Whether an on/off command is on now (for the ticks in the menus)
+bool Apple2e::commandIsOn(Command command) const {
+  switch (command) {
+  case Command::ToggleGreen:
+    return m_video.monochrome();
+  case Command::ToggleCrt:
+    return m_crt;
+  case Command::TogglePanel:
+    return !m_panelHidden;
+  case Command::ToggleDriveSounds:
+    return m_driveSounds.enabled();
+  case Command::ToggleMenuBar:
+    return m_menuBar && m_menuBar->visible();
+  default:
+    return false;
+  }
 }
 
 void Apple2e::runCommand(Command command, bool fromMenu) {
@@ -880,6 +895,13 @@ void Apple2e::runCommand(Command command, bool fromMenu) {
   case Command::TogglePanel:
     setPanelHidden(!m_panelHidden, true);
     break;
+  case Command::ToggleMenuBar:
+    if (m_menuBar) {
+      m_menuBar->setVisible(!m_menuBar->visible());
+      if (!m_menuBar->visible())
+        m_sidePanel->showMessage("F10 shows the menu bar", false);
+    }
+    break;
   case Command::Quit: {
     SDL_Event quit;
     SDL_zero(quit);
@@ -930,6 +952,9 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
     }
   }
 
+  if (m_menuBar && m_menuBar->handleEvent(event))
+    return;
+
   if (event.type == SDL_KEYDOWN) {
     SDL_Keycode key = event.key.keysym.sym;
     SDL_Keymod mod = static_cast<SDL_Keymod>(event.key.keysym.mod);
@@ -939,6 +964,8 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
     std::optional<Command> command;
     if (key == SDLK_F12)
       command = shift ? Command::PowerCycle : Command::Reset;
+    else if (key == SDLK_F10)
+      command = Command::ToggleMenuBar;
     else if (cmd && key == SDLK_v)
       command = Command::Paste;
     else if (cmd && key == SDLK_q)
@@ -1013,6 +1040,8 @@ void Apple2e::run() {
       m_crtDisplay->setCurvature(m_curvature);
     }
     compose(m_renderer, m_video.frameTexture(), m_crtDisplay.get());
+    if (m_menuBar)
+      m_menuBar->draw(m_renderer, logicalSize().x);
     SDL_RenderPresent(m_renderer);
     if (m_drawer) {
       // Beyond the panel only the handle shows: the rest is see-through,

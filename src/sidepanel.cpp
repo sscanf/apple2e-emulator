@@ -2,6 +2,7 @@
 
 #include "disk2.h"
 #include "font.h"
+#include "uitext.h"
 #include "video.h"
 
 #ifdef HAVE_SDL_IMAGE
@@ -25,7 +26,6 @@ namespace apple2e {
 
 namespace {
 
-constexpr int kCharWidth = 6;
 constexpr int kDriveTop = 16;
 constexpr int kDriveSpacing = 136;
 constexpr int kSliderTrackX = 36;  // offset of the slider track in its row
@@ -56,24 +56,6 @@ constexpr SDL_Color kSwitchKnob = {0xD0, 0xD0, 0xD0, 0xFF};
 void fill(SDL_Renderer* r, const SDL_Rect& rect, SDL_Color c) {
     SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
     SDL_RenderFillRect(r, &rect);
-}
-
-void drawText(SDL_Renderer* r, int x, int y, const std::string& text, SDL_Color c) {
-    std::vector<SDL_Rect> dots;
-    for (char ch : text) {
-        auto code = static_cast<unsigned char>(ch);
-        if (code >= 0x20 && code < 0x80) {
-            for (int row = 0; row < 8; row++) {
-                uint8_t bits = glyphRow(code, row);
-                for (int col = 0; col < 5; col++) {
-                    if (bits & (0x10 >> col)) dots.push_back({x + col, y + row, 1, 1});
-                }
-            }
-        }
-        x += kCharWidth;
-    }
-    SDL_SetRenderDrawColor(r, c.r, c.g, c.b, c.a);
-    SDL_RenderFillRects(r, dots.data(), static_cast<int>(dots.size()));
 }
 
 // Split text into lines of at most `width` characters, ellipsizing past `maxLines`

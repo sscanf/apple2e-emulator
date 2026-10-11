@@ -10,6 +10,7 @@ struct Settings {
     bool greenMonitor = false;
     bool crtMonitor = false;  // Apple Monitor II with CRT effects
     bool sidePanel = true;    // drives and controls beside the screen
+    bool menuBar = true;      // menu bar in the window (not on macOS)
     int crtCurvature = 30;    // percent of the maximum glass curvature
     bool driveSounds = true;
     int motorVolume = 100;  // percent

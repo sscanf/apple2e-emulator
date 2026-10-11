@@ -46,6 +46,7 @@ add_library(apple2e_core STATIC
     src/io.cpp
     src/keyboard.cpp
     src/memory.cpp
+    src/menubar.cpp
     src/mousecard.cpp
     src/settings.cpp
     src/sidepanel.cpp
