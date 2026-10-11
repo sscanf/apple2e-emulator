@@ -107,7 +107,8 @@ private:
     void placePanelWindow();
     float panelTravel() const;
     bool handlePanelHandle(const SDL_Event& event);
-    void drawPanelHandle(SDL_Renderer* renderer, int height) const;
+    SDL_Rect panelHandleRect() const;
+    void drawPanelHandle(SDL_Renderer* renderer) const;
     float zoomFor(SDL_Point oldSize, SDL_Point newSize) const;
     void updatePanelSlide(float seconds);
     void writeState(StateWriter& w) const;
@@ -143,6 +144,7 @@ private:
     bool m_drawer = false;
     SDL_Window* m_panelWindow = nullptr;
     SDL_Renderer* m_panelRenderer = nullptr;
+    bool m_panelTransparent = false;  // only the handle shows beyond the panel
     // Dragging the panel by its handle
     bool m_handleDragged = false;
     bool m_handleMoved = false;

@@ -49,6 +49,55 @@ bool attachWindowBehind(SDL_Window *parent, SDL_Window *child) {
 #endif
 }
 
+// Let what is behind `window` show through the pixels its renderer leaves
+// transparent (only the panel's handle is drawn beyond the panel). Needs
+// Cocoa and the Metal renderer; false otherwise.
+bool makeWindowTransparent(SDL_Window *window, SDL_Renderer *renderer) {
+#ifdef __APPLE__
+  SDL_SysWMinfo info;
+  SDL_VERSION(&info.version);
+  id layer = reinterpret_cast<id>(SDL_RenderGetMetalLayer(renderer));
+  if (!layer || !SDL_GetWindowWMInfo(window, &info) ||
+      info.subsystem != SDL_SYSWM_COCOA || !info.info.cocoa.window)
+    return false;
+  id nsWindow = reinterpret_cast<id>(info.info.cocoa.window);
+  auto setBool = reinterpret_cast<void (*)(id, SEL, signed char)>(objc_msgSend);
+  auto getObject = reinterpret_cast<id (*)(id, SEL)>(objc_msgSend);
+  auto setObject = reinterpret_cast<void (*)(id, SEL, id)>(objc_msgSend);
+  id clear = getObject(reinterpret_cast<id>(objc_getClass("NSColor")),
+                       sel_registerName("clearColor"));
+  setBool(nsWindow, sel_registerName("setOpaque:"), 0);
+  setObject(nsWindow, sel_registerName("setBackgroundColor:"), clear);
+  setBool(nsWindow, sel_registerName("setHasShadow:"), 0);
+  setBool(layer, sel_registerName("setOpaque:"), 0);
+  return true;
+#else
+  (void)window;
+  (void)renderer;
+  return false;
+#endif
+}
+
+// SDL paints the window's own layer black whenever it is redisplayed; take
+// that away again (cheap enough to do on every frame)
+void clearWindowBackground(SDL_Window *window) {
+#ifdef __APPLE__
+  SDL_SysWMinfo info;
+  SDL_VERSION(&info.version);
+  if (!SDL_GetWindowWMInfo(window, &info) || !info.info.cocoa.window)
+    return;
+  auto getObject = reinterpret_cast<id (*)(id, SEL)>(objc_msgSend);
+  auto setPointer = reinterpret_cast<void (*)(id, SEL, void *)>(objc_msgSend);
+  id view = getObject(reinterpret_cast<id>(info.info.cocoa.window),
+                      sel_registerName("contentView"));
+  id layer = view ? getObject(view, sel_registerName("layer")) : nullptr;
+  if (layer)
+    setPointer(layer, sel_registerName("setBackgroundColor:"), nullptr);
+#else
+  (void)window;
+#endif
+}
+
 // Window an input event belongs to (0 if it has none)
 Uint32 eventWindowID(const SDL_Event &event) {
   switch (event.type) {
@@ -81,7 +130,8 @@ constexpr int kLogicalWidth = kPanelX + SidePanel::kWidth;
 constexpr float kPanelSlideSeconds = 0.25f;
 // Strip on the panel's outer edge to pull it out or push it in with the
 // mouse; it stays in view when the panel is hidden
-constexpr int kHandleWidth = 14;
+constexpr int kHandleWidth = 12;
+constexpr int kHandleHeight = 64;
 constexpr int kPanelWindowWidth = SidePanel::kWidth + kHandleWidth;
 
 float smoothStep(float t) { return t * t * (3.0f - 2.0f * t); }
@@ -361,6 +411,7 @@ void Apple2e::createPanelWindow() {
     m_panelRenderer = SDL_CreateRenderer(m_panelWindow, -1, SDL_RENDERER_ACCELERATED);
   if (m_panelRenderer && attachWindowBehind(m_window, m_panelWindow)) {
     m_drawer = true;
+    m_panelTransparent = makeWindowTransparent(m_panelWindow, m_panelRenderer);
     // The main window was made wide enough for the panel too
     SDL_SetWindowSize(m_window, kPanelX * 3 / 2, kLogicalHeight * 3 / 2);
     SDL_SetWindowPosition(m_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
@@ -416,7 +467,9 @@ bool Apple2e::handlePanelHandle(const SDL_Event &event) {
   bool leftButton = (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) &&
                     event.button.button == SDL_BUTTON_LEFT;
   if (event.type == SDL_MOUSEMOTION && !m_handleDragged) {
-    bool over = event.motion.x >= SidePanel::kWidth;
+    SDL_Point p = {event.motion.x, event.motion.y};
+    SDL_Rect tab = panelHandleRect();
+    bool over = SDL_PointInRect(&p, &tab);
     if (!m_resizeCursor)
       m_resizeCursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
     if (!m_arrowCursor)
@@ -424,7 +477,9 @@ bool Apple2e::handlePanelHandle(const SDL_Event &event) {
     SDL_SetCursor(over ? m_resizeCursor : m_arrowCursor);
     return false;
   }
-  if (leftButton && event.type == SDL_MOUSEBUTTONDOWN && event.button.x >= SidePanel::kWidth) {
+  SDL_Point click = {event.button.x, event.button.y};
+  SDL_Rect tab = panelHandleRect();
+  if (leftButton && event.type == SDL_MOUSEBUTTONDOWN && SDL_PointInRect(&click, &tab)) {
     int y;
     SDL_GetGlobalMouseState(&m_dragStartX, &y); // the window moves under the pointer
     m_dragStartShown = m_panelShown;
@@ -455,16 +510,24 @@ bool Apple2e::handlePanelHandle(const SDL_Event &event) {
   return true;
 }
 
-void Apple2e::drawPanelHandle(SDL_Renderer *renderer, int height) const {
-  SDL_Rect strip = {SidePanel::kWidth, 0, kHandleWidth, height};
+// The handle: a tab half way up the panel's outer edge
+SDL_Rect Apple2e::panelHandleRect() const {
+  return {SidePanel::kWidth, logicalSize().y / 2 - kHandleHeight / 2, kHandleWidth, kHandleHeight};
+}
+
+void Apple2e::drawPanelHandle(SDL_Renderer *renderer) const {
+  SDL_Rect tab = panelHandleRect();
+  // Rounded on the outside
   SDL_SetRenderDrawColor(renderer, 0x3A, 0x3B, 0x3E, 255);
-  SDL_RenderFillRect(renderer, &strip);
-  SDL_SetRenderDrawColor(renderer, 0x18, 0x18, 0x1A, 255);
-  SDL_RenderDrawLine(renderer, strip.x, 0, strip.x, height - 1);
+  SDL_Rect parts[] = {{tab.x, tab.y, tab.w - 3, tab.h},
+                      {tab.x + tab.w - 3, tab.y + 1, 1, tab.h - 2},
+                      {tab.x + tab.w - 2, tab.y + 2, 1, tab.h - 4},
+                      {tab.x + tab.w - 1, tab.y + 4, 1, tab.h - 8}};
+  SDL_RenderFillRects(renderer, parts, 4);
   // Grip: three ridges, each a light line with a shadow
   for (int i = 0; i < 3; i++) {
-    int x = strip.x + 3 + i * 3 + 1;
-    int top = height / 2 - 18, bottom = height / 2 + 18;
+    int x = tab.x + 2 + i * 3;
+    int top = tab.y + 12, bottom = tab.y + tab.h - 13;
     SDL_SetRenderDrawColor(renderer, 0x8A, 0x8C, 0x90, 255);
     SDL_RenderDrawLine(renderer, x, top, x, bottom);
     SDL_SetRenderDrawColor(renderer, 0x1C, 0x1C, 0x1E, 255);
@@ -883,10 +946,16 @@ void Apple2e::run() {
     compose(m_renderer, m_video.frameTexture(), m_crtDisplay.get());
     SDL_RenderPresent(m_renderer);
     if (m_drawer) {
-      SDL_SetRenderDrawColor(m_panelRenderer, 0, 0, 0, 255);
+      // Beyond the panel only the handle shows: the rest is see-through,
+      // or the panel's own colour where that is not possible
+      if (m_panelTransparent) {
+        clearWindowBackground(m_panelWindow);
+        SDL_SetRenderDrawColor(m_panelRenderer, 0, 0, 0, 0);
+      } else
+        SDL_SetRenderDrawColor(m_panelRenderer, 0x1C, 0x1C, 0x1E, 255);
       SDL_RenderClear(m_panelRenderer);
       m_sidePanel->draw(m_panelRenderer);
-      drawPanelHandle(m_panelRenderer, logicalSize().y);
+      drawPanelHandle(m_panelRenderer);
       SDL_RenderPresent(m_panelRenderer);
     }
 
