@@ -5,6 +5,7 @@
 #endif
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -25,6 +26,9 @@ constexpr int kBorder = 16;
 constexpr SDL_Rect kScreenRect = {kBorder, kBorder, kScreenWidth, kScreenHeight};
 constexpr int kPanelX = kScreenWidth + 2 * kBorder;
 constexpr int kLogicalWidth = kPanelX + SidePanel::kWidth;
+constexpr float kPanelSlideSeconds = 0.25f;
+
+float smoothStep(float t) { return t * t * (3.0f - 2.0f * t); }
 constexpr int kLogicalHeight = kScreenHeight + 2 * kBorder;
 } // namespace
 
@@ -214,7 +218,7 @@ SDL_Rect Apple2e::screenRect() const {
 int Apple2e::panelX() const { return m_crt ? CrtDisplay::kWidth : kPanelX; }
 
 SDL_Point Apple2e::logicalSize() const {
-  int panel = m_panelHidden ? 0 : SidePanel::kWidth;
+  int panel = static_cast<int>(std::lround(SidePanel::kWidth * m_panelShown));
   if (m_crt)
     return {CrtDisplay::kWidth + panel, CrtDisplay::kHeight};
   return {kPanelX + panel, kLogicalHeight};
@@ -224,13 +228,22 @@ void Apple2e::compose(SDL_Renderer *renderer, SDL_Texture *frame,
                       CrtDisplay *crt) const {
   SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
   SDL_RenderClear(renderer);
+  // The panel goes first: while it slides away, the monitor covers it
+  if (m_panelShown > 0) {
+    m_sidePanel->draw(renderer);
+    SDL_Rect monitor = {0, 0, panelX(), logicalSize().y};
+    SDL_BlendMode blend;
+    SDL_GetRenderDrawBlendMode(renderer, &blend);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_NONE);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    SDL_RenderFillRect(renderer, &monitor);
+    SDL_SetRenderDrawBlendMode(renderer, blend);
+  }
   if (m_crt && crt && crt->ok()) {
     crt->draw(frame, {0, 0}, m_video.monochrome());
   } else {
     SDL_RenderCopy(renderer, frame, nullptr, &kScreenRect);
   }
-  if (!m_panelHidden)
-    m_sidePanel->draw(renderer);
 }
 
 void Apple2e::setCrt(bool on) {
@@ -239,30 +252,63 @@ void Apple2e::setCrt(bool on) {
   relayout(oldSize);
 }
 
-void Apple2e::setPanelHidden(bool hidden) {
+void Apple2e::setPanelHidden(bool hidden, bool animate) {
   SDL_Point oldSize = logicalSize();
   m_panelHidden = hidden;
-  relayout(oldSize);
+  if (!animate || !m_window) {
+    m_panelSliding = false;
+    m_slideT = m_panelShown = hidden ? 0.0f : 1.0f;
+    relayout(oldSize);
+    return;
+  }
+  // Slide at the current zoom; updatePanelSlide() moves it frame by frame
+  m_panelShown = hidden ? 0.0f : 1.0f; // only to measure the final size
+  m_slideZoom = zoomFor(oldSize, logicalSize());
+  m_panelShown = smoothStep(m_slideT);
+  m_panelSliding = true;
 }
 
-// The layout changed (monitor style or side panel): resize the window for it
-void Apple2e::relayout(SDL_Point oldSize) {
-  SDL_Point size = logicalSize();
-  m_sidePanel->setGeometry(panelX(), size.y);
-  if (!m_window || !m_renderer)
+void Apple2e::updatePanelSlide(float seconds) {
+  if (!m_panelSliding)
     return;
+  float step = seconds / kPanelSlideSeconds;
+  m_slideT = m_panelHidden ? std::max(0.0f, m_slideT - step)
+                           : std::min(1.0f, m_slideT + step);
+  m_panelShown = smoothStep(m_slideT);
+  applyLayout(m_slideZoom);
+  if (m_slideT <= 0.0f || m_slideT >= 1.0f)
+    m_panelSliding = false;
+}
 
-  // Keep the current zoom, within the usable area of the window's display
+// The window's zoom now (it shows `oldSize`), limited so that `newSize` fits
+// the usable area of the window's display
+float Apple2e::zoomFor(SDL_Point oldSize, SDL_Point newSize) const {
   int w, h;
   SDL_GetWindowSize(m_window, &w, &h);
   float zoom = static_cast<float>(w) / oldSize.x;
   SDL_Rect usable;
   if (SDL_GetDisplayUsableBounds(SDL_GetWindowDisplayIndex(m_window), &usable) == 0) {
-    zoom = std::min({zoom, usable.w * 0.95f / size.x, usable.h * 0.95f / size.y});
+    zoom = std::min({zoom, usable.w * 0.95f / newSize.x, usable.h * 0.95f / newSize.y});
   }
+  return zoom;
+}
+
+// Place the panel and size the window for the current layout
+void Apple2e::applyLayout(float zoom) {
+  SDL_Point size = logicalSize();
+  // Partly shown, the panel's left part is under the monitor
+  m_sidePanel->setGeometry(size.x - SidePanel::kWidth, size.y);
+  if (!m_window || !m_renderer)
+    return;
   SDL_RenderSetLogicalSize(m_renderer, size.x, size.y);
-  SDL_SetWindowSize(m_window, static_cast<int>(size.x * zoom),
-                    static_cast<int>(size.y * zoom));
+  SDL_SetWindowSize(m_window, static_cast<int>(std::lround(size.x * zoom)),
+                    static_cast<int>(std::lround(size.y * zoom)));
+}
+
+// The layout changed (monitor style or side panel): resize the window for it,
+// keeping its zoom
+void Apple2e::relayout(SDL_Point oldSize) {
+  applyLayout(m_window ? zoomFor(oldSize, logicalSize()) : 1.0f);
 }
 
 void Apple2e::setCurvature(float curvature) {
@@ -545,7 +591,7 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
       return;
     }
     if ((mod & KMOD_GUI) && key == SDLK_b) {
-      setPanelHidden(!m_panelHidden);
+      setPanelHidden(!m_panelHidden, true);
       return;
     }
     if ((mod & KMOD_GUI) && key == SDLK_g) {
@@ -574,7 +620,7 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
   if (m_mouseCard.handleEvent(event, screen))
     return;
   m_gameIO.handleEvent(event, screen);
-  if (!m_panelHidden && m_sidePanel->handleEvent(event, m_renderer))
+  if (m_panelShown >= 1.0f && m_sidePanel->handleEvent(event, m_renderer))
     return;
   m_keyboard.handleEvent(event);
 }
@@ -600,6 +646,7 @@ void Apple2e::run() {
     while (SDL_PollEvent(&event))
       handleEvent(event, running);
     m_sidePanel->update();
+    updatePanelSlide(static_cast<float>(frameSeconds));
 
     runFrame();
     if (m_crt && !m_crtDisplay) {

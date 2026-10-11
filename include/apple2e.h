@@ -44,7 +44,8 @@ public:
     bool crt() const { return m_crt; }
 
     // Hide the side panel (drives and controls), leaving only the screen
-    void setPanelHidden(bool hidden);
+    // (`animate` slides it under the monitor instead of jumping)
+    void setPanelHidden(bool hidden, bool animate = false);
     bool panelHidden() const { return m_panelHidden; }
     // Curvature of the CRT glass, 0 (flat) to kMaxCurvature
     static constexpr float kMaxCurvature = 0.10f;
@@ -100,6 +101,9 @@ private:
     int panelX() const;
     SDL_Point logicalSize() const;
     void relayout(SDL_Point oldSize);
+    void applyLayout(float zoom);
+    float zoomFor(SDL_Point oldSize, SDL_Point newSize) const;
+    void updatePanelSlide(float seconds);
     void writeState(StateWriter& w) const;
     void readState(StateReader& r);
     void quickSave();
@@ -126,6 +130,10 @@ private:
     std::unique_ptr<SidePanel> m_sidePanel;
     bool m_crt = false;
     bool m_panelHidden = false;
+    float m_panelShown = 1.0f;   // visible fraction of the side panel
+    float m_slideT = 1.0f;       // the same before easing
+    float m_slideZoom = 1.0f;    // window zoom kept while it slides
+    bool m_panelSliding = false;
     float m_curvature = 0.03f;
     SDL_Surface* m_bezel = nullptr;               // monitor case artwork
     std::unique_ptr<CrtDisplay> m_crtDisplay;     // for the window's renderer
