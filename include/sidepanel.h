@@ -55,6 +55,10 @@ public:
 
     // Put the disk image at `path` in `drive` (0 or 1)
     void insertDisk(int drive, const std::string& path) { insert(drive, path); }
+    // Take the disk out of `drive`, if there is one
+    void ejectDisk(int drive) {
+        if (m_controller) eject(drive);
+    }
 
     // Call once per frame: inserts the disk once the file dialog has closed
     void update();

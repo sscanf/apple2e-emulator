@@ -47,11 +47,14 @@ executable and up to three folders above it, so `./apple2e_emulator` also
 works from inside `build/`. Another system ROM can be given as an argument:
 `./build/apple2e_emulator other.rom`.
 
+On macOS every command is also in the menu bar.
+
 | Key | Action |
 |-----|--------|
 | F12 | RESET (CTRL-RESET) |
 | Shift+F12 | Power cycle |
 | Cmd+1 / Cmd+2 | Insert a disk in drive 1 / 2 |
+| Cmd+Shift+1 / Cmd+Shift+2 | Eject the disk in drive 1 / 2 |
 | Cmd+D | Drive sounds on/off |
 | Cmd+G | Colour / green monitor |
 | Cmd+M | Apple Monitor II (CRT) look on / off |

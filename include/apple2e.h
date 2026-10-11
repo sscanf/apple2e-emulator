@@ -24,6 +24,16 @@
 namespace apple2e {
 
 // Main Apple IIe emulator
+// Everything the emulator can be told to do from a hotkey or the menu bar
+enum class Command {
+    Reset, PowerCycle,
+    InsertDisk1, InsertDisk2, EjectDisk1, EjectDisk2,
+    QuickSave, QuickLoad, SaveStateAs, LoadStateFrom,
+    Paste,
+    ToggleDriveSounds, ToggleGreen, ToggleCrt, TogglePanel,
+    Quit,
+};
+
 class Apple2e {
 public:
     Apple2e();
@@ -101,6 +111,8 @@ private:
     int panelX() const;
     SDL_Point logicalSize() const;
     void relayout(SDL_Point oldSize);
+    // `fromMenu` tells the two ways a command can arrive apart (see .cpp)
+    void runCommand(Command command, bool fromMenu);
     void applyLayout(float zoom);
     void createPanelWindow();
     void layoutPanelWindow();
@@ -145,6 +157,10 @@ private:
     SDL_Window* m_panelWindow = nullptr;
     SDL_Renderer* m_panelRenderer = nullptr;
     bool m_panelTransparent = false;  // only the handle shows beyond the panel
+    Uint32 m_menuEvent = 0;           // SDL event type of menu bar choices
+    Command m_lastCommand = Command::Reset;
+    bool m_lastCommandFromMenu = false;
+    Uint32 m_lastCommandTicks = 0;
     // Dragging the panel by its handle
     bool m_handleDragged = false;
     bool m_handleMoved = false;

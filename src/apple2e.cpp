@@ -1,5 +1,7 @@
 #include "apple2e.h"
 
+#include "macmenu.h"
+
 #ifdef HAVE_SDL_IMAGE
 #include <SDL_image.h>
 #endif
@@ -16,6 +18,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 
 namespace apple2e {
 
@@ -271,6 +274,23 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
     m_audio.init();
     SDL_StartTextInput();
     applySettings();
+#ifdef __APPLE__
+    m_menuEvent = SDL_RegisterEvents(1);
+    installMacMenu(m_menuEvent, [this](int command) {
+      switch (static_cast<Command>(command)) {
+      case Command::ToggleGreen:
+        return m_video.monochrome();
+      case Command::ToggleCrt:
+        return m_crt;
+      case Command::TogglePanel:
+        return !m_panelHidden;
+      case Command::ToggleDriveSounds:
+        return m_driveSounds.enabled();
+      default:
+        return false;
+      }
+    });
+#endif
   }
 
   reset(true);
@@ -805,9 +825,78 @@ void Apple2e::runFrames(int frames) {
     runFrame();
 }
 
+void Apple2e::runCommand(Command command, bool fromMenu) {
+  // A shortcut that is also a menu item's may arrive both as the key press
+  // and as the menu's choice, depending on the system: act on it once
+  Uint32 now = SDL_GetTicks();
+  bool repeated = command == m_lastCommand && fromMenu != m_lastCommandFromMenu &&
+                  now - m_lastCommandTicks < 200;
+  m_lastCommand = command;
+  m_lastCommandFromMenu = fromMenu;
+  m_lastCommandTicks = now;
+  if (repeated)
+    return;
+
+  switch (command) {
+  case Command::Reset:
+    reset(false);
+    break;
+  case Command::PowerCycle:
+    reset(true);
+    break;
+  case Command::InsertDisk1:
+  case Command::InsertDisk2:
+    m_sidePanel->chooseDisk(command == Command::InsertDisk1 ? 0 : 1);
+    break;
+  case Command::EjectDisk1:
+  case Command::EjectDisk2:
+    m_sidePanel->ejectDisk(command == Command::EjectDisk1 ? 0 : 1);
+    break;
+  case Command::QuickSave:
+    quickSave();
+    break;
+  case Command::QuickLoad:
+    quickLoad();
+    break;
+  case Command::SaveStateAs:
+  case Command::LoadStateFrom:
+    m_sidePanel->chooseStateFile(command == Command::SaveStateAs);
+    break;
+  case Command::Paste:
+    if (char *clip = SDL_GetClipboardText()) {
+      m_keyboard.queueText(clip);
+      SDL_free(clip);
+    }
+    break;
+  case Command::ToggleDriveSounds:
+    m_driveSounds.setEnabled(!m_driveSounds.enabled());
+    break;
+  case Command::ToggleGreen:
+    m_video.setMonochrome(!m_video.monochrome());
+    break;
+  case Command::ToggleCrt:
+    setCrt(!m_crt);
+    break;
+  case Command::TogglePanel:
+    setPanelHidden(!m_panelHidden, true);
+    break;
+  case Command::Quit: {
+    SDL_Event quit;
+    SDL_zero(quit);
+    quit.type = SDL_QUIT;
+    SDL_PushEvent(&quit);
+    break;
+  }
+  }
+}
+
 void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
   if (event.type == SDL_QUIT) {
     running = false;
+    return;
+  }
+  if (m_menuEvent != 0 && event.type == m_menuEvent) {
+    runCommand(static_cast<Command>(event.user.code), true);
     return;
   }
   if (event.type == SDL_WINDOWEVENT) {
@@ -846,52 +935,32 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
     SDL_Keymod mod = static_cast<SDL_Keymod>(event.key.keysym.mod);
 
     // Emulator hotkeys; everything else goes to the Apple keyboard
-    if (key == SDLK_F12) {
-      reset(mod & KMOD_SHIFT);
-      return;
-    }
-    if ((mod & KMOD_GUI) && key == SDLK_v) {
-      if (char *clip = SDL_GetClipboardText()) {
-        m_keyboard.queueText(clip);
-        SDL_free(clip);
-      }
-      return;
-    }
-    if ((mod & KMOD_GUI) && key == SDLK_q) {
-      running = false;
-      return;
-    }
-    if ((mod & KMOD_GUI) && (mod & KMOD_SHIFT) &&
-        (key == SDLK_s || key == SDLK_l)) {
-      m_sidePanel->chooseStateFile(key == SDLK_s); // Save as / Load from file
-      return;
-    }
-    if ((mod & KMOD_GUI) && key == SDLK_s) {
-      quickSave();
-      return;
-    }
-    if ((mod & KMOD_GUI) && key == SDLK_l) {
-      quickLoad();
-      return;
-    }
-    if ((mod & KMOD_GUI) && key == SDLK_m) {
-      setCrt(!m_crt);
-      return;
-    }
-    if ((mod & KMOD_GUI) && key == SDLK_b) {
-      setPanelHidden(!m_panelHidden, true);
-      return;
-    }
-    if ((mod & KMOD_GUI) && key == SDLK_g) {
-      m_video.setMonochrome(!m_video.monochrome());
-      return;
-    }
-    if ((mod & KMOD_GUI) && key == SDLK_d) {
-      m_driveSounds.setEnabled(!m_driveSounds.enabled());
-      return;
-    }
-    if ((mod & KMOD_GUI) && (key == SDLK_1 || key == SDLK_2)) {
-      m_sidePanel->chooseDisk(key == SDLK_1 ? 0 : 1);
+    bool cmd = mod & KMOD_GUI, shift = mod & KMOD_SHIFT;
+    std::optional<Command> command;
+    if (key == SDLK_F12)
+      command = shift ? Command::PowerCycle : Command::Reset;
+    else if (cmd && key == SDLK_v)
+      command = Command::Paste;
+    else if (cmd && key == SDLK_q)
+      command = Command::Quit;
+    else if (cmd && key == SDLK_s)
+      command = shift ? Command::SaveStateAs : Command::QuickSave;
+    else if (cmd && key == SDLK_l)
+      command = shift ? Command::LoadStateFrom : Command::QuickLoad;
+    else if (cmd && key == SDLK_m)
+      command = Command::ToggleCrt;
+    else if (cmd && key == SDLK_b)
+      command = Command::TogglePanel;
+    else if (cmd && key == SDLK_g)
+      command = Command::ToggleGreen;
+    else if (cmd && key == SDLK_d)
+      command = Command::ToggleDriveSounds;
+    else if (cmd && key == SDLK_1)
+      command = shift ? Command::EjectDisk1 : Command::InsertDisk1;
+    else if (cmd && key == SDLK_2)
+      command = shift ? Command::EjectDisk2 : Command::InsertDisk2;
+    if (command) {
+      runCommand(*command, false);
       return;
     }
   }

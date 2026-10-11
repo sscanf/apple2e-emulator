@@ -66,7 +66,12 @@ if(WIN32)
     target_link_libraries(apple2e_core PUBLIC comdlg32)  # file dialogs
 endif()
 if(APPLE)
-    target_link_libraries(apple2e_core PUBLIC objc)  # the side panel's window
+    # The menu bar (Objective-C++) and the side panel's window
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+    target_sources(apple2e_core PRIVATE src/macmenu.mm)
+    target_link_libraries(apple2e_core PUBLIC objc "-framework Cocoa")
 endif()
 target_compile_options(apple2e_core PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>
