@@ -55,6 +55,7 @@ works from inside `build/`. Another system ROM can be given as an argument:
 | Cmd+D | Drive sounds on/off |
 | Cmd+G | Colour / green monitor |
 | Cmd+M | Apple Monitor II (CRT) look on / off |
+| Cmd+B | Hide / show the side panel (drives and controls) |
 | Cmd+S / Cmd+L | Save / load state (quick slot) |
 | Cmd+Shift+S / Cmd+Shift+L | Save state as / load state from a file |
 | Cmd+V | Paste text |

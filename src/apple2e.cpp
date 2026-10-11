@@ -214,9 +214,10 @@ SDL_Rect Apple2e::screenRect() const {
 int Apple2e::panelX() const { return m_crt ? CrtDisplay::kWidth : kPanelX; }
 
 SDL_Point Apple2e::logicalSize() const {
+  int panel = m_panelHidden ? 0 : SidePanel::kWidth;
   if (m_crt)
-    return {CrtDisplay::kWidth + SidePanel::kWidth, CrtDisplay::kHeight};
-  return {kLogicalWidth, kLogicalHeight};
+    return {CrtDisplay::kWidth + panel, CrtDisplay::kHeight};
+  return {kPanelX + panel, kLogicalHeight};
 }
 
 void Apple2e::compose(SDL_Renderer *renderer, SDL_Texture *frame,
@@ -228,12 +229,24 @@ void Apple2e::compose(SDL_Renderer *renderer, SDL_Texture *frame,
   } else {
     SDL_RenderCopy(renderer, frame, nullptr, &kScreenRect);
   }
-  m_sidePanel->draw(renderer);
+  if (!m_panelHidden)
+    m_sidePanel->draw(renderer);
 }
 
 void Apple2e::setCrt(bool on) {
   SDL_Point oldSize = logicalSize();
   m_crt = on;
+  relayout(oldSize);
+}
+
+void Apple2e::setPanelHidden(bool hidden) {
+  SDL_Point oldSize = logicalSize();
+  m_panelHidden = hidden;
+  relayout(oldSize);
+}
+
+// The layout changed (monitor style or side panel): resize the window for it
+void Apple2e::relayout(SDL_Point oldSize) {
   SDL_Point size = logicalSize();
   m_sidePanel->setGeometry(panelX(), size.y);
   if (!m_window || !m_renderer)
@@ -418,7 +431,9 @@ void Apple2e::quickLoad() {
 
 void Apple2e::applySettings() {
   m_video.setMonochrome(m_settings.greenMonitor);
-  setCrt(m_settings.crtMonitor); // before the window size, which was saved for it
+  // Both before the window size, which was saved for this layout
+  setCrt(m_settings.crtMonitor);
+  setPanelHidden(!m_settings.sidePanel);
   setCurvature(m_settings.crtCurvature / 100.0f * kMaxCurvature);
   m_driveSounds.setEnabled(m_settings.driveSounds);
   m_driveSounds.setMotorVolume(m_settings.motorVolume / 100.0f);
@@ -446,6 +461,7 @@ void Apple2e::saveSettings() {
     return;
   m_settings.greenMonitor = m_video.monochrome();
   m_settings.crtMonitor = m_crt;
+  m_settings.sidePanel = !m_panelHidden;
   m_settings.crtCurvature =
       static_cast<int>(m_curvature / kMaxCurvature * 100 + 0.5f);
   m_settings.driveSounds = m_driveSounds.enabled();
@@ -528,6 +544,10 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
       setCrt(!m_crt);
       return;
     }
+    if ((mod & KMOD_GUI) && key == SDLK_b) {
+      setPanelHidden(!m_panelHidden);
+      return;
+    }
     if ((mod & KMOD_GUI) && key == SDLK_g) {
       m_video.setMonochrome(!m_video.monochrome());
       return;
@@ -554,7 +574,7 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
   if (m_mouseCard.handleEvent(event, screen))
     return;
   m_gameIO.handleEvent(event, screen);
-  if (m_sidePanel->handleEvent(event, m_renderer))
+  if (!m_panelHidden && m_sidePanel->handleEvent(event, m_renderer))
     return;
   m_keyboard.handleEvent(event);
 }

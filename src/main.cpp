@@ -80,6 +80,7 @@ void usage(const char* argv0) {
               << "  --green             start with a green-phosphor monitor (toggle with Cmd+G;\n"
               << "                      otherwise the monitor last used is restored)\n"
               << "  --crt               Apple Monitor II look with CRT effects (Cmd+M)\n"
+              << "  --no-panel          start without the side panel of drives and controls (Cmd+B)\n"
               << "  --load-state FILE   start from a save state\n"
               << "  --save-state FILE   with --headless, save the state at the end\n"
               << "  --headless FRAMES   run without a window and print the text screen\n"
@@ -109,6 +110,7 @@ int main(int argc, char* argv[]) {
     int typeDelayFrames = 60;
     bool green = false;
     bool crt = false;
+    bool noPanel = false;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -124,6 +126,8 @@ int main(int argc, char* argv[]) {
             green = true;
         } else if (arg == "--crt") {
             crt = true;
+        } else if (arg == "--no-panel") {
+            noPanel = true;
         } else if (arg == "--load-state" && i + 1 < argc) {
             loadStatePath = argv[++i];
         } else if (arg == "--save-state" && i + 1 < argc) {
@@ -162,6 +166,7 @@ int main(int argc, char* argv[]) {
     if (std::string dir = findFile(kDriveImagesDir); !dir.empty()) emulator.loadDriveImages(dir);
     if (std::string dir = findFile(kMonitorImageDir); !dir.empty()) emulator.loadMonitorImage(dir);
     if (crt) emulator.setCrt(true);
+    if (noPanel) emulator.setPanelHidden(true);
     if (std::string videoRom = findFile(kVideoRom); !videoRom.empty()) emulator.loadCharacterRom(videoRom);
     for (int drive = 0; drive < 2; drive++) {
         if (diskPaths[drive].empty()) continue;
