@@ -110,6 +110,8 @@ private:
     void createPanelWindow();
     void layoutPanelWindow();
     void placePanelWindow();
+    void placeWindowsAbove();
+    bool overPanelHandle(const SDL_Event& event, int x, int y) const;
     float panelTravel() const;
     bool handlePanelHandle(const SDL_Event& event);
     SDL_Rect panelHandleRect() const;
@@ -150,6 +152,12 @@ private:
     SDL_Window* m_panelWindow = nullptr;
     SDL_Renderer* m_panelRenderer = nullptr;
     bool m_panelTransparent = false;  // only the handle shows beyond the panel
+    // X11 and Windows: the panel's window is in front and beside the main
+    // one, cut to the part that shows, and the handle has its own window
+    bool m_panelAbove = false;
+    bool m_panelWindowShown = true;
+    SDL_Window* m_handleWindow = nullptr;
+    SDL_Renderer* m_handleRenderer = nullptr;
     std::unique_ptr<MenuBar> m_menuBar;  // in the window, where menus go there
     Uint32 m_menuEvent = 0;           // SDL event type of menu bar choices
     Command m_lastCommand = Command::Reset;

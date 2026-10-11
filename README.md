@@ -68,6 +68,12 @@ bar at the top of the window on Linux and Windows (F10 hides or shows it).
 | Caps Lock | Upper / lower case, as on the Mac (Applesoft accepts lowercase commands) |
 | Left / Right Option (Alt) | Open Apple / Solid Apple (buttons 0 / 1); Option+key sends the key with the Apple key held (e.g. Option+Q is Open-Apple-Q), unless the layout types a character with it, like `@` or `[` |
 
+The side panel is a drawer: Cmd+B, or its handle (drag it, or click it), slides
+it in and out without changing the main window. That needs a system that lets
+a program place its windows, so on Linux the emulator asks SDL for X11
+(XWayland on a Wayland desktop) unless `SDL_VIDEODRIVER` is set; on native
+Wayland the panel stays inside the window and hides at once.
+
 ### Mouse
 
 An AppleMouse card sits in slot 4. Once a program switches the mouse on (for

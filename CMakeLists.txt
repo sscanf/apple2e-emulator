@@ -48,6 +48,7 @@ add_library(apple2e_core STATIC
     src/memory.cpp
     src/menubar.cpp
     src/mousecard.cpp
+    src/platformwindow.cpp
     src/settings.cpp
     src/sidepanel.cpp
     src/softcard.cpp
@@ -65,6 +66,9 @@ else()
 endif()
 if(WIN32)
     target_link_libraries(apple2e_core PUBLIC comdlg32)  # file dialogs
+endif()
+if(UNIX AND NOT APPLE)
+    target_link_libraries(apple2e_core PUBLIC ${CMAKE_DL_LIBS})  # libX11, looked up at run time
 endif()
 if(APPLE)
     # The menu bar (Objective-C++) and the side panel's window

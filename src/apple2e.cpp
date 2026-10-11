@@ -1,15 +1,10 @@
 #include "apple2e.h"
 
 #include "macmenu.h"
+#include "platformwindow.h"
 
 #ifdef HAVE_SDL_IMAGE
 #include <SDL_image.h>
-#endif
-
-#ifdef __APPLE__
-#include <SDL_syswm.h>
-#include <objc/message.h>
-#include <objc/runtime.h>
 #endif
 
 #include <algorithm>
@@ -23,84 +18,6 @@
 namespace apple2e {
 
 namespace {
-// Make `child` follow `parent` around and stay behind it, like a macOS
-// drawer: the side panel slides out from under the monitor's window. Only
-// Cocoa can keep two windows ordered like that; false anywhere else.
-bool attachWindowBehind(SDL_Window *parent, SDL_Window *child) {
-#ifdef __APPLE__
-  SDL_SysWMinfo parentInfo, childInfo;
-  SDL_VERSION(&parentInfo.version);
-  SDL_VERSION(&childInfo.version);
-  if (!SDL_GetWindowWMInfo(parent, &parentInfo) ||
-      !SDL_GetWindowWMInfo(child, &childInfo) ||
-      parentInfo.subsystem != SDL_SYSWM_COCOA ||
-      childInfo.subsystem != SDL_SYSWM_COCOA)
-    return false;
-  id parentWindow = reinterpret_cast<id>(parentInfo.info.cocoa.window);
-  id childWindow = reinterpret_cast<id>(childInfo.info.cocoa.window);
-  if (!parentWindow || !childWindow)
-    return false;
-  const long kNSWindowBelow = -1;
-  reinterpret_cast<void (*)(id, SEL, id, long)>(objc_msgSend)(
-      parentWindow, sel_registerName("addChildWindow:ordered:"), childWindow,
-      kNSWindowBelow);
-  return true;
-#else
-  (void)parent;
-  (void)child;
-  return false;
-#endif
-}
-
-// Let what is behind `window` show through the pixels its renderer leaves
-// transparent (only the panel's handle is drawn beyond the panel). Needs
-// Cocoa and the Metal renderer; false otherwise.
-bool makeWindowTransparent(SDL_Window *window, SDL_Renderer *renderer) {
-#ifdef __APPLE__
-  SDL_SysWMinfo info;
-  SDL_VERSION(&info.version);
-  id layer = reinterpret_cast<id>(SDL_RenderGetMetalLayer(renderer));
-  if (!layer || !SDL_GetWindowWMInfo(window, &info) ||
-      info.subsystem != SDL_SYSWM_COCOA || !info.info.cocoa.window)
-    return false;
-  id nsWindow = reinterpret_cast<id>(info.info.cocoa.window);
-  auto setBool = reinterpret_cast<void (*)(id, SEL, signed char)>(objc_msgSend);
-  auto getObject = reinterpret_cast<id (*)(id, SEL)>(objc_msgSend);
-  auto setObject = reinterpret_cast<void (*)(id, SEL, id)>(objc_msgSend);
-  id clear = getObject(reinterpret_cast<id>(objc_getClass("NSColor")),
-                       sel_registerName("clearColor"));
-  setBool(nsWindow, sel_registerName("setOpaque:"), 0);
-  setObject(nsWindow, sel_registerName("setBackgroundColor:"), clear);
-  setBool(nsWindow, sel_registerName("setHasShadow:"), 0);
-  setBool(layer, sel_registerName("setOpaque:"), 0);
-  return true;
-#else
-  (void)window;
-  (void)renderer;
-  return false;
-#endif
-}
-
-// SDL paints the window's own layer black whenever it is redisplayed; take
-// that away again (cheap enough to do on every frame)
-void clearWindowBackground(SDL_Window *window) {
-#ifdef __APPLE__
-  SDL_SysWMinfo info;
-  SDL_VERSION(&info.version);
-  if (!SDL_GetWindowWMInfo(window, &info) || !info.info.cocoa.window)
-    return;
-  auto getObject = reinterpret_cast<id (*)(id, SEL)>(objc_msgSend);
-  auto setPointer = reinterpret_cast<void (*)(id, SEL, void *)>(objc_msgSend);
-  id view = getObject(reinterpret_cast<id>(info.info.cocoa.window),
-                      sel_registerName("contentView"));
-  id layer = view ? getObject(view, sel_registerName("layer")) : nullptr;
-  if (layer)
-    setPointer(layer, sel_registerName("setBackgroundColor:"), nullptr);
-#else
-  (void)window;
-#endif
-}
-
 // Window an input event belongs to (0 if it has none)
 Uint32 eventWindowID(const SDL_Event &event) {
   switch (event.type) {
@@ -176,6 +93,10 @@ Apple2e::~Apple2e() {
     SDL_FreeCursor(m_resizeCursor);
   if (m_arrowCursor)
     SDL_FreeCursor(m_arrowCursor);
+  if (m_handleRenderer)
+    SDL_DestroyRenderer(m_handleRenderer);
+  if (m_handleWindow)
+    SDL_DestroyWindow(m_handleWindow);
   if (m_panelRenderer)
     SDL_DestroyRenderer(m_panelRenderer);
   if (m_panelWindow)
@@ -238,8 +159,14 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
   }
 
   if (!headless) {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) <
-        0) {
+    const Uint32 subsystems = SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER;
+    bool askedX11 = preferX11();
+    int initialized = SDL_Init(subsystems);
+    if (initialized < 0 && askedX11) {
+      undoPreferX11(); // no X11 here: whatever SDL picks
+      initialized = SDL_Init(subsystems);
+    }
+    if (initialized < 0) {
       std::cerr << "SDL init failed: " << SDL_GetError() << std::endl;
       return false;
     }
@@ -413,54 +340,115 @@ void Apple2e::updatePanelSlide(float seconds) {
   placePanelWindow();
 }
 
-// The side panel in a window of its own, kept behind the main one: hiding it
-// slides that window under the monitor and the main window never changes
+// The side panel in a window of its own, so that hiding it never changes the
+// main window. On macOS it is kept behind the main window and slides under
+// it. On X11 and Windows, which can only keep a window in front of another,
+// it stays beside the main window and is cut shorter instead, with the
+// handle in a third, small window; that looks the same. Anywhere else
+// (Wayland) the panel stays inside the main window.
 void Apple2e::createPanelWindow() {
-#ifndef __APPLE__
-  return; // nothing else keeps a second window glued behind the first
-#endif
-  m_panelWindow = SDL_CreateWindow(
-      "Apple IIe drives", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-      kPanelWindowWidth * 3 / 2, kLogicalHeight * 3 / 2,
-      SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_SKIP_TASKBAR);
+  const char *driver = SDL_GetCurrentVideoDriver();
+  std::string video = driver ? driver : "";
+  bool behind = video == "cocoa";
+  bool above = video == "x11" || video == "windows";
+  if (!behind && !above)
+    return;
+
+  const Uint32 flags = SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_SKIP_TASKBAR;
+  m_panelWindow = SDL_CreateWindow("Apple IIe drives", SDL_WINDOWPOS_UNDEFINED,
+                                   SDL_WINDOWPOS_UNDEFINED, kPanelWindowWidth * 3 / 2,
+                                   kLogicalHeight * 3 / 2, flags);
   if (m_panelWindow)
     m_panelRenderer = SDL_CreateRenderer(m_panelWindow, -1, SDL_RENDERER_ACCELERATED);
-  if (m_panelRenderer && attachWindowBehind(m_window, m_panelWindow)) {
+  bool ok = m_panelRenderer != nullptr;
+  if (ok && behind) {
+    ok = attachWindowBehind(m_window, m_panelWindow);
+    if (ok)
+      m_panelTransparent = makeWindowTransparent(m_panelWindow, m_panelRenderer);
+  } else if (ok) {
+    m_handleWindow = SDL_CreateWindow("Apple IIe drives handle", SDL_WINDOWPOS_UNDEFINED,
+                                      SDL_WINDOWPOS_UNDEFINED, kHandleWidth * 3 / 2,
+                                      kHandleHeight * 3 / 2, flags);
+    if (m_handleWindow)
+      m_handleRenderer = SDL_CreateRenderer(m_handleWindow, -1, SDL_RENDERER_ACCELERATED);
+    ok = m_handleRenderer && attachWindowAbove(m_window, m_panelWindow) &&
+         attachWindowAbove(m_window, m_handleWindow);
+    if (ok) {
+      SDL_RenderSetLogicalSize(m_handleRenderer, kHandleWidth, kHandleHeight);
+      m_panelAbove = true;
+    }
+  }
+  if (ok) {
     m_drawer = true;
-    m_panelTransparent = makeWindowTransparent(m_panelWindow, m_panelRenderer);
     // The main window was made wide enough for the panel too
     SDL_SetWindowSize(m_window, kPanelX * 3 / 2, kLogicalHeight * 3 / 2);
     SDL_SetWindowPosition(m_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     SDL_RaiseWindow(m_window);
     return;
   }
-  if (m_panelRenderer)
-    SDL_DestroyRenderer(m_panelRenderer);
-  if (m_panelWindow)
-    SDL_DestroyWindow(m_panelWindow);
-  m_panelRenderer = nullptr;
-  m_panelWindow = nullptr;
+  for (SDL_Renderer **renderer : {&m_handleRenderer, &m_panelRenderer}) {
+    if (*renderer)
+      SDL_DestroyRenderer(*renderer);
+    *renderer = nullptr;
+  }
+  for (SDL_Window **window : {&m_handleWindow, &m_panelWindow}) {
+    if (*window)
+      SDL_DestroyWindow(*window);
+    *window = nullptr;
+  }
 }
 
 // Size the panel's window for the main one (same height and zoom)
 void Apple2e::layoutPanelWindow() {
   if (!m_drawer)
     return;
-  int w, h;
+  if (!m_panelAbove) {
+    int w, h;
+    SDL_GetWindowSize(m_window, &w, &h);
+    SDL_Point size = logicalSize();
+    int panelW = static_cast<int>(std::lround(kPanelWindowWidth * static_cast<float>(h) / size.y));
+    SDL_SetWindowSize(m_panelWindow, panelW, h);
+    SDL_RenderSetLogicalSize(m_panelRenderer, kPanelWindowWidth, size.y);
+  }
+  placePanelWindow();
+}
+
+// The panel beside the main window, as wide as the part of it that shows
+// (its picture keeps to the right edge, so the left part is the one cut
+// off, as if it were under the monitor), and the handle at its outer edge
+void Apple2e::placeWindowsAbove() {
+  int x, y, w, h;
+  SDL_GetWindowPosition(m_window, &x, &y);
   SDL_GetWindowSize(m_window, &w, &h);
   SDL_Point size = logicalSize();
-  int panelW = static_cast<int>(std::lround(kPanelWindowWidth * static_cast<float>(h) / size.y));
-  SDL_SetWindowSize(m_panelWindow, panelW, h);
-  SDL_RenderSetLogicalSize(m_panelRenderer, kPanelWindowWidth, size.y);
-  placePanelWindow();
+  float zoom = static_cast<float>(h) / size.y;
+  int visibleW = static_cast<int>(std::lround(SidePanel::kWidth * zoom * m_panelShown));
+  int handleW = static_cast<int>(std::lround(kHandleWidth * zoom));
+  int handleH = static_cast<int>(std::lround(kHandleHeight * zoom));
+
+  bool visible = visibleW > 0;
+  if (visible) {
+    SDL_SetWindowSize(m_panelWindow, visibleW, h);
+    if (!m_panelWindowShown)
+      SDL_ShowWindow(m_panelWindow);
+    SDL_SetWindowPosition(m_panelWindow, x + w, y);
+  } else if (m_panelWindowShown) {
+    SDL_HideWindow(m_panelWindow);
+  }
+  m_panelWindowShown = visible;
+  SDL_SetWindowSize(m_handleWindow, handleW, handleH);
+  SDL_SetWindowPosition(m_handleWindow, x + w + visibleW, y + (h - handleH) / 2);
+
+  int hidden = SidePanel::kWidth - static_cast<int>(std::lround(SidePanel::kWidth * m_panelShown));
+  m_sidePanel->setGeometry(-hidden, size.y);
 }
 
 // How far the panel's window travels between hidden and shown, in window
 // units: the panel's width without the handle
 float Apple2e::panelTravel() const {
-  int panelW, panelH;
-  SDL_GetWindowSize(m_panelWindow, &panelW, &panelH);
-  return panelW * static_cast<float>(SidePanel::kWidth) / kPanelWindowWidth;
+  int w, h;
+  SDL_GetWindowSize(m_window, &w, &h);
+  return SidePanel::kWidth * static_cast<float>(h) / logicalSize().y;
 }
 
 // Shown, the panel's window touches the main window's right edge; hidden, the
@@ -468,6 +456,10 @@ float Apple2e::panelTravel() const {
 void Apple2e::placePanelWindow() {
   if (!m_drawer)
     return;
+  if (m_panelAbove) {
+    placeWindowsAbove();
+    return;
+  }
   int x, y, w, h;
   SDL_GetWindowPosition(m_window, &x, &y);
   SDL_GetWindowSize(m_window, &w, &h);
@@ -479,13 +471,21 @@ void Apple2e::placePanelWindow() {
 
 // The handle on the panel's window: drag it to slide the panel (it settles on
 // the nearer side when released), or click it to hide / show the panel
+// Whether a mouse event of one of the panel's windows, at (x, y), is on the
+// handle
+bool Apple2e::overPanelHandle(const SDL_Event &event, int x, int y) const {
+  if (m_panelAbove) // the handle has a window to itself
+    return eventWindowID(event) == SDL_GetWindowID(m_handleWindow);
+  SDL_Point p = {x, y};
+  SDL_Rect tab = panelHandleRect();
+  return SDL_PointInRect(&p, &tab);
+}
+
 bool Apple2e::handlePanelHandle(const SDL_Event &event) {
   bool leftButton = (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) &&
                     event.button.button == SDL_BUTTON_LEFT;
   if (event.type == SDL_MOUSEMOTION && !m_handleDragged) {
-    SDL_Point p = {event.motion.x, event.motion.y};
-    SDL_Rect tab = panelHandleRect();
-    bool over = SDL_PointInRect(&p, &tab);
+    bool over = overPanelHandle(event, event.motion.x, event.motion.y);
     if (!m_resizeCursor)
       m_resizeCursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
     if (!m_arrowCursor)
@@ -493,9 +493,8 @@ bool Apple2e::handlePanelHandle(const SDL_Event &event) {
     SDL_SetCursor(over ? m_resizeCursor : m_arrowCursor);
     return false;
   }
-  SDL_Point click = {event.button.x, event.button.y};
-  SDL_Rect tab = panelHandleRect();
-  if (leftButton && event.type == SDL_MOUSEBUTTONDOWN && SDL_PointInRect(&click, &tab)) {
+  if (leftButton && event.type == SDL_MOUSEBUTTONDOWN &&
+      overPanelHandle(event, event.button.x, event.button.y)) {
     int y;
     SDL_GetGlobalMouseState(&m_dragStartX, &y); // the window moves under the pointer
     m_dragStartShown = m_panelShown;
@@ -532,6 +531,8 @@ bool Apple2e::handlePanelHandle(const SDL_Event &event) {
 SDL_Rect Apple2e::panelHandleRect() const {
   SDL_Point size = logicalSize();
   int y = size.y / 2 - kHandleHeight / 2;
+  if (m_panelAbove)
+    return {0, 0, kHandleWidth, kHandleHeight}; // all of its own window
   if (m_drawer)
     return {SidePanel::kWidth, y, kHandleWidth, kHandleHeight};
   return {size.x - kInnerHandleWidth, y, kInnerHandleWidth, kHandleHeight};
@@ -578,7 +579,8 @@ float Apple2e::zoomFor(SDL_Point oldSize, SDL_Point newSize) const {
 // Place the panel and size the window for the current layout
 void Apple2e::applyLayout(float zoom) {
   SDL_Point size = logicalSize();
-  m_sidePanel->setGeometry(m_drawer ? 0 : panelX(), size.y);
+  if (!m_panelAbove) // (placeWindowsAbove() does it there)
+    m_sidePanel->setGeometry(m_drawer ? 0 : panelX(), size.y);
   if (!m_window || !m_renderer)
     return;
   SDL_RenderSetLogicalSize(m_renderer, size.x, size.y);
@@ -947,11 +949,29 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
   // and are not for the Apple's mouse or paddles
   if (m_drawer) {
     Uint32 id = eventWindowID(event);
-    if (id != 0 && id == SDL_GetWindowID(m_panelWindow)) {
+    bool onPanel = id != 0 && id == SDL_GetWindowID(m_panelWindow);
+    bool onHandle = id != 0 && m_handleWindow && id == SDL_GetWindowID(m_handleWindow);
+    if (onPanel || onHandle) {
       if (handlePanelHandle(event))
         return;
-      if (m_panelShown >= 1.0f)
-        m_sidePanel->handleEvent(event, m_panelRenderer);
+      if (onPanel && m_panelShown >= 1.0f) {
+        SDL_Event local = event;
+        if (m_panelAbove) {
+          // That window has no logical size (its width changes as it
+          // slides): scale the pointer to the panel's units here
+          int w, h;
+          SDL_GetWindowSize(m_panelWindow, &w, &h);
+          float scale = static_cast<float>(logicalSize().y) / h;
+          if (event.type == SDL_MOUSEMOTION) {
+            local.motion.x = static_cast<int>(event.motion.x * scale);
+            local.motion.y = static_cast<int>(event.motion.y * scale);
+          } else if (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
+            local.button.x = static_cast<int>(event.button.x * scale);
+            local.button.y = static_cast<int>(event.button.y * scale);
+          }
+        }
+        m_sidePanel->handleEvent(local, m_panelRenderer);
+      }
       // Typing goes on in the main window after a click on the panel
       if (event.type == SDL_MOUSEBUTTONUP)
         SDL_RaiseWindow(m_window);
@@ -1068,7 +1088,23 @@ void Apple2e::run() {
     if (m_menuBar)
       m_menuBar->draw(m_renderer, logicalSize().x);
     SDL_RenderPresent(m_renderer);
-    if (m_drawer) {
+    if (m_panelAbove) {
+      if (m_panelWindowShown) {
+        // Drawn at the main window's zoom, whatever the window's width
+        int outW, outH;
+        SDL_GetRendererOutputSize(m_panelRenderer, &outW, &outH);
+        float scale = static_cast<float>(outH) / logicalSize().y;
+        SDL_RenderSetScale(m_panelRenderer, scale, scale);
+        SDL_SetRenderDrawColor(m_panelRenderer, 0x1C, 0x1C, 0x1E, 255);
+        SDL_RenderClear(m_panelRenderer);
+        m_sidePanel->draw(m_panelRenderer);
+        SDL_RenderPresent(m_panelRenderer);
+      }
+      SDL_SetRenderDrawColor(m_handleRenderer, 0x3A, 0x3B, 0x3E, 255);
+      SDL_RenderClear(m_handleRenderer);
+      drawPanelHandle(m_handleRenderer);
+      SDL_RenderPresent(m_handleRenderer);
+    } else if (m_drawer) {
       // Beyond the panel only the handle shows: the rest is see-through,
       // or the panel's own colour where that is not possible
       if (m_panelTransparent) {
