@@ -102,7 +102,6 @@ private:
     SDL_Point logicalSize() const;
     void relayout(SDL_Point oldSize);
     void applyLayout(float zoom);
-    void placePanel();
     float zoomFor(SDL_Point oldSize, SDL_Point newSize) const;
     void updatePanelSlide(float seconds);
     void writeState(StateWriter& w) const;
@@ -133,6 +132,7 @@ private:
     bool m_panelHidden = false;
     float m_panelShown = 1.0f;   // visible fraction of the side panel
     float m_slideT = 1.0f;       // the same before easing
+    float m_slideZoom = 1.0f;    // window zoom kept while it slides
     bool m_panelSliding = false;
     float m_curvature = 0.03f;
     SDL_Surface* m_bezel = nullptr;               // monitor case artwork
