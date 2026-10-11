@@ -79,8 +79,21 @@ constexpr SDL_Rect kScreenRect = {kBorder, kBorder, kScreenWidth, kScreenHeight}
 constexpr int kPanelX = kScreenWidth + 2 * kBorder;
 constexpr int kLogicalWidth = kPanelX + SidePanel::kWidth;
 constexpr float kPanelSlideSeconds = 0.25f;
+// Strip on the panel's outer edge to pull it out or push it in with the
+// mouse; it stays in view when the panel is hidden
+constexpr int kHandleWidth = 14;
+constexpr int kPanelWindowWidth = SidePanel::kWidth + kHandleWidth;
 
 float smoothStep(float t) { return t * t * (3.0f - 2.0f * t); }
+
+float inverseSmoothStep(float value) {
+  float lo = 0.0f, hi = 1.0f;
+  for (int i = 0; i < 24; i++) {
+    float mid = (lo + hi) / 2;
+    (smoothStep(mid) < value ? lo : hi) = mid;
+  }
+  return (lo + hi) / 2;
+}
 constexpr int kLogicalHeight = kScreenHeight + 2 * kBorder;
 } // namespace
 
@@ -105,6 +118,10 @@ Apple2e::~Apple2e() {
   if (m_hasDisk2)
     m_disk2.flush();
   m_sidePanel.reset(); // its textures belong to one of the renderers
+  if (m_resizeCursor)
+    SDL_FreeCursor(m_resizeCursor);
+  if (m_arrowCursor)
+    SDL_FreeCursor(m_arrowCursor);
   if (m_panelRenderer)
     SDL_DestroyRenderer(m_panelRenderer);
   if (m_panelWindow)
@@ -335,7 +352,7 @@ void Apple2e::createPanelWindow() {
 #endif
   m_panelWindow = SDL_CreateWindow(
       "Apple IIe drives", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-      SidePanel::kWidth * 3 / 2, kLogicalHeight * 3 / 2,
+      kPanelWindowWidth * 3 / 2, kLogicalHeight * 3 / 2,
       SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALLOW_HIGHDPI | SDL_WINDOW_SKIP_TASKBAR);
   if (m_panelWindow)
     m_panelRenderer = SDL_CreateRenderer(m_panelWindow, -1, SDL_RENDERER_ACCELERATED);
@@ -362,27 +379,105 @@ void Apple2e::layoutPanelWindow() {
   int w, h;
   SDL_GetWindowSize(m_window, &w, &h);
   SDL_Point size = logicalSize();
-  int panelW = static_cast<int>(std::lround(SidePanel::kWidth * static_cast<float>(h) / size.y));
+  int panelW = static_cast<int>(std::lround(kPanelWindowWidth * static_cast<float>(h) / size.y));
   SDL_SetWindowSize(m_panelWindow, panelW, h);
-  SDL_RenderSetLogicalSize(m_panelRenderer, SidePanel::kWidth, size.y);
+  SDL_RenderSetLogicalSize(m_panelRenderer, kPanelWindowWidth, size.y);
   placePanelWindow();
 }
 
-// Shown, the panel's window touches the main window's right edge; hidden, it
-// is wholly behind it (and a little further in, clear of the rounded corners)
+// How far the panel's window travels between hidden and shown, in window
+// units: the panel's width without the handle
+float Apple2e::panelTravel() const {
+  int panelW, panelH;
+  SDL_GetWindowSize(m_panelWindow, &panelW, &panelH);
+  return panelW * static_cast<float>(SidePanel::kWidth) / kPanelWindowWidth;
+}
+
+// Shown, the panel's window touches the main window's right edge; hidden, the
+// panel is behind the main window and only the handle sticks out
 void Apple2e::placePanelWindow() {
   if (!m_drawer)
     return;
-  int x, y, w, h, panelW, panelH;
+  int x, y, w, h;
   SDL_GetWindowPosition(m_window, &x, &y);
   SDL_GetWindowSize(m_window, &w, &h);
-  SDL_GetWindowSize(m_panelWindow, &panelW, &panelH);
-  const int kTuck = 24;
-  float hiddenX = static_cast<float>(x + w - panelW - kTuck);
   float shownX = static_cast<float>(x + w);
+  float hiddenX = shownX - panelTravel();
   int panelX = static_cast<int>(std::lround(hiddenX + (shownX - hiddenX) * m_panelShown));
   SDL_SetWindowPosition(m_panelWindow, panelX, y);
-  SDL_SetWindowOpacity(m_panelWindow, m_panelShown > 0 ? 1.0f : 0.0f);
+}
+
+// The handle on the panel's window: drag it to slide the panel (it settles on
+// the nearer side when released), or click it to hide / show the panel
+bool Apple2e::handlePanelHandle(const SDL_Event &event) {
+  bool leftButton = (event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) &&
+                    event.button.button == SDL_BUTTON_LEFT;
+  if (event.type == SDL_MOUSEMOTION && !m_handleDragged) {
+    bool over = event.motion.x >= SidePanel::kWidth;
+    if (!m_resizeCursor)
+      m_resizeCursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_SIZEWE);
+    if (!m_arrowCursor)
+      m_arrowCursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+    SDL_SetCursor(over ? m_resizeCursor : m_arrowCursor);
+    return false;
+  }
+  if (leftButton && event.type == SDL_MOUSEBUTTONDOWN && event.button.x >= SidePanel::kWidth) {
+    int y;
+    SDL_GetGlobalMouseState(&m_dragStartX, &y); // the window moves under the pointer
+    m_dragStartShown = m_panelShown;
+    m_handleDragged = true;
+    m_handleMoved = false;
+    m_panelSliding = false;
+    return true;
+  }
+  if (!m_handleDragged)
+    return false;
+
+  if (event.type == SDL_MOUSEMOTION) {
+    int x, y;
+    SDL_GetGlobalMouseState(&x, &y);
+    if (std::abs(x - m_dragStartX) > 3)
+      m_handleMoved = true;
+    if (m_handleMoved) {
+      m_panelShown = std::clamp(m_dragStartShown + (x - m_dragStartX) / panelTravel(), 0.0f, 1.0f);
+      placePanelWindow();
+    }
+  } else if (leftButton && event.type == SDL_MOUSEBUTTONUP) {
+    m_handleDragged = false;
+    m_panelHidden = m_handleMoved ? m_panelShown < 0.5f : !m_panelHidden;
+    m_slideT = inverseSmoothStep(m_panelShown);
+    m_panelSliding = true; // the rest of the way
+    SDL_RaiseWindow(m_window);
+  }
+  return true;
+}
+
+void Apple2e::drawPanelHandle(SDL_Renderer *renderer, int height) const {
+  SDL_Rect strip = {SidePanel::kWidth, 0, kHandleWidth, height};
+  SDL_SetRenderDrawColor(renderer, 0x3A, 0x3B, 0x3E, 255);
+  SDL_RenderFillRect(renderer, &strip);
+  SDL_SetRenderDrawColor(renderer, 0x18, 0x18, 0x1A, 255);
+  SDL_RenderDrawLine(renderer, strip.x, 0, strip.x, height - 1);
+  // Grip: three ridges, each a light line with a shadow
+  for (int i = 0; i < 3; i++) {
+    int x = strip.x + 3 + i * 3 + 1;
+    int top = height / 2 - 18, bottom = height / 2 + 18;
+    SDL_SetRenderDrawColor(renderer, 0x8A, 0x8C, 0x90, 255);
+    SDL_RenderDrawLine(renderer, x, top, x, bottom);
+    SDL_SetRenderDrawColor(renderer, 0x1C, 0x1C, 0x1E, 255);
+    SDL_RenderDrawLine(renderer, x + 1, top, x + 1, bottom);
+  }
+  // Arrows above and below: the way the panel goes when the handle is clicked
+  int dir = m_panelHidden ? 1 : -1;
+  int cx = strip.x + kHandleWidth / 2;
+  SDL_SetRenderDrawColor(renderer, 0xB8, 0xBA, 0xBE, 255);
+  for (int cy : {height / 2 - 32, height / 2 + 32}) {
+    for (int thick = 0; thick < 2; thick++) {
+      int tipX = cx + dir * 2 + thick * dir, backX = cx - dir * 2 + thick * dir;
+      SDL_RenderDrawLine(renderer, backX, cy - 4, tipX, cy);
+      SDL_RenderDrawLine(renderer, tipX, cy, backX, cy + 4);
+    }
+  }
 }
 
 // The window's zoom now (it shows `oldSize`), limited so that `newSize` fits
@@ -675,6 +770,8 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
   if (m_drawer) {
     Uint32 id = eventWindowID(event);
     if (id != 0 && id == SDL_GetWindowID(m_panelWindow)) {
+      if (handlePanelHandle(event))
+        return;
       if (m_panelShown >= 1.0f)
         m_sidePanel->handleEvent(event, m_panelRenderer);
       // Typing goes on in the main window after a click on the panel
@@ -752,6 +849,8 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
     SDL_Point p = {event.motion.x, event.motion.y};
     bool overScreen = SDL_PointInRect(&p, &screen);
     SDL_ShowCursor(m_mouseCard.enabled() && overScreen ? SDL_DISABLE : SDL_ENABLE);
+    if (m_arrowCursor)
+      SDL_SetCursor(m_arrowCursor); // back from the panel handle's cursor
   }
   if (m_mouseCard.handleEvent(event, screen))
     return;
@@ -791,10 +890,11 @@ void Apple2e::run() {
     }
     compose(m_renderer, m_video.frameTexture(), m_crtDisplay.get());
     SDL_RenderPresent(m_renderer);
-    if (m_drawer && m_panelShown > 0) {
+    if (m_drawer) {
       SDL_SetRenderDrawColor(m_panelRenderer, 0, 0, 0, 255);
       SDL_RenderClear(m_panelRenderer);
       m_sidePanel->draw(m_panelRenderer);
+      drawPanelHandle(m_panelRenderer, logicalSize().y);
       SDL_RenderPresent(m_panelRenderer);
     }
 

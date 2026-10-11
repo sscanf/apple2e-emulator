@@ -105,6 +105,9 @@ private:
     void createPanelWindow();
     void layoutPanelWindow();
     void placePanelWindow();
+    float panelTravel() const;
+    bool handlePanelHandle(const SDL_Event& event);
+    void drawPanelHandle(SDL_Renderer* renderer, int height) const;
     float zoomFor(SDL_Point oldSize, SDL_Point newSize) const;
     void updatePanelSlide(float seconds);
     void writeState(StateWriter& w) const;
@@ -140,6 +143,13 @@ private:
     bool m_drawer = false;
     SDL_Window* m_panelWindow = nullptr;
     SDL_Renderer* m_panelRenderer = nullptr;
+    // Dragging the panel by its handle
+    bool m_handleDragged = false;
+    bool m_handleMoved = false;
+    int m_dragStartX = 0;          // pointer, in screen coordinates
+    float m_dragStartShown = 0.0f;
+    SDL_Cursor* m_resizeCursor = nullptr;
+    SDL_Cursor* m_arrowCursor = nullptr;
     bool m_panelSliding = false;
     float m_curvature = 0.03f;
     SDL_Surface* m_bezel = nullptr;               // monitor case artwork
