@@ -65,6 +65,9 @@ endif()
 if(WIN32)
     target_link_libraries(apple2e_core PUBLIC comdlg32)  # file dialogs
 endif()
+if(APPLE)
+    target_link_libraries(apple2e_core PUBLIC objc)  # the side panel's window
+endif()
 target_compile_options(apple2e_core PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>
 )

@@ -53,6 +53,9 @@ public:
     // emulation (and drive sound) carries on; the disk is inserted by update()
     void chooseDisk(int drive);
 
+    // Put the disk image at `path` in `drive` (0 or 1)
+    void insertDisk(int drive, const std::string& path) { insert(drive, path); }
+
     // Call once per frame: inserts the disk once the file dialog has closed
     void update();
 
