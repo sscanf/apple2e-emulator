@@ -82,7 +82,10 @@ public:
     // Text screen contents as ASCII
     std::string screenText() const { return m_video.textDump(); }
     // Save the screen and disk panel as a BMP
-    bool saveScreenshot(const std::string& path) const;
+    // `scale` multiplies the resolution (the window's logical size is 1)
+    bool saveScreenshot(const std::string& path, int scale = 1) const;
+    // The same picture as a new ARGB8888 surface (caller frees); null on error
+    SDL_Surface* renderScreenshot(int scale) const;
 
 private:
     void runFrame();

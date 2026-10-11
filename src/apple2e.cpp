@@ -160,16 +160,18 @@ std::string Apple2e::insertDisk(int drive, const std::string &path) {
   return m_disk2.insert(drive, path);
 }
 
-bool Apple2e::saveScreenshot(const std::string &path) const {
+SDL_Surface *Apple2e::renderScreenshot(int scale) const {
   SDL_Point size = logicalSize();
-  SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, size.x, size.y, 32,
-                                                        SDL_PIXELFORMAT_ARGB8888);
+  SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(
+      0, size.x * scale, size.y * scale, 32, SDL_PIXELFORMAT_ARGB8888);
   if (!surface)
-    return false;
+    return nullptr;
 
   // Same drawing as the window, with a software renderer on the surface
   bool ok = false;
   if (SDL_Renderer *renderer = SDL_CreateSoftwareRenderer(surface)) {
+    SDL_RenderSetScale(renderer, static_cast<float>(scale),
+                       static_cast<float>(scale));
     SDL_Texture *frame = m_video.createFrameTexture(renderer);
     if (frame) {
       std::unique_ptr<CrtDisplay> crt;
@@ -181,10 +183,22 @@ bool Apple2e::saveScreenshot(const std::string &path) const {
       SDL_RenderPresent(renderer);
       crt.reset();
       SDL_DestroyTexture(frame);
-      ok = SDL_SaveBMP(surface, path.c_str()) == 0;
+      ok = true;
     }
     SDL_DestroyRenderer(renderer);
   }
+  if (!ok) {
+    SDL_FreeSurface(surface);
+    return nullptr;
+  }
+  return surface;
+}
+
+bool Apple2e::saveScreenshot(const std::string &path, int scale) const {
+  SDL_Surface *surface = renderScreenshot(scale);
+  if (!surface)
+    return false;
+  bool ok = SDL_SaveBMP(surface, path.c_str()) == 0;
   SDL_FreeSurface(surface);
   return ok;
 }

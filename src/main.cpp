@@ -1,6 +1,7 @@
 #define SDL_MAIN_HANDLED
 #include "apple2e.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
@@ -88,7 +89,9 @@ void usage(const char* argv0) {
               << "  --type-delay FRAMES frames to wait before typing (default 60; 60 per second)\n"
               << "  --screenshot FILE   with --headless, also save the final frame as BMP\n"
               << "  --record DIR        with --headless, save every other frame to DIR as\n"
-              << "                      frame00000.bmp... (30 per second, for making a video)\n";
+              << "                      frame00000.bmp... (30 per second, for making a video);\n"
+              << "                      a name ending in .raw gets all frames as raw BGRA\n"
+              << "  --record-scale N    record at N times the window's resolution (default 1)\n";
 }
 
 } // namespace
@@ -98,6 +101,7 @@ int main(int argc, char* argv[]) {
     std::string typed;
     std::string screenshotPath;
     std::string recordDir;
+    int recordScale = 1;
     std::string loadStatePath;
     std::string saveStatePath;
     std::string diskPaths[2];
@@ -128,6 +132,8 @@ int main(int argc, char* argv[]) {
             screenshotPath = argv[++i];
         } else if (arg == "--record" && i + 1 < argc) {
             recordDir = argv[++i];
+        } else if (arg == "--record-scale" && i + 1 < argc) {
+            recordScale = std::max(1, std::atoi(argv[++i]));
         } else if (arg == "-h" || arg == "--help") {
             usage(argv[0]);
             return 0;
@@ -175,15 +181,36 @@ int main(int argc, char* argv[]) {
         if (recordDir.empty()) {
             emulator.runFrames(headlessFrames);
         } else {
+            // A path ending in .raw collects the frames in one file of raw
+            // BGRA pixels (it can be a FIFO read by ffmpeg) instead of BMPs
+            bool raw = recordDir.size() > 4 && recordDir.compare(recordDir.size() - 4, 4, ".raw") == 0;
+            FILE* out = raw ? std::fopen(recordDir.c_str(), "wb") : nullptr;
+            if (raw && !out) {
+                std::cerr << "Cannot write " << recordDir << std::endl;
+                return 1;
+            }
             for (int frame = 0; frame < headlessFrames; frame += 2) {
                 emulator.runFrames(2);
-                char name[32];
-                std::snprintf(name, sizeof(name), "frame%05d.bmp", frame / 2);
-                if (!emulator.saveScreenshot((std::filesystem::path(recordDir) / name).string())) {
-                    std::cerr << "Failed to save " << name << ": " << SDL_GetError() << std::endl;
+                bool ok;
+                if (raw) {
+                    SDL_Surface* surface = emulator.renderScreenshot(recordScale);
+                    ok = surface != nullptr;
+                    for (int y = 0; ok && y < surface->h; y++) {
+                        auto* row = static_cast<const uint8_t*>(surface->pixels) + y * surface->pitch;
+                        ok = std::fwrite(row, 4, surface->w, out) == static_cast<size_t>(surface->w);
+                    }
+                    if (surface) SDL_FreeSurface(surface);
+                } else {
+                    char name[32];
+                    std::snprintf(name, sizeof(name), "frame%05d.bmp", frame / 2);
+                    ok = emulator.saveScreenshot((std::filesystem::path(recordDir) / name).string(), recordScale);
+                }
+                if (!ok) {
+                    std::cerr << "Failed to save frame " << frame / 2 << ": " << SDL_GetError() << std::endl;
                     return 1;
                 }
             }
+            if (out) std::fclose(out);
         }
         std::cout << emulator.screenText();
         if (!saveStatePath.empty()) {
