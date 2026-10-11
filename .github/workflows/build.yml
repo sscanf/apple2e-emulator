@@ -23,20 +23,35 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake pkg-config libsdl2-dev libsdl2-image-dev
+          sudo apt-get install -y cmake pkg-config libsdl2-dev
+      # SDL2_image is linked in (PNG only), so the package needs just SDL2,
+      # which nearly every desktop already has
+      - name: Build SDL2_image
+        run: |
+          git clone --depth 1 -b release-2.8.8 https://github.com/libsdl-org/SDL_image.git image-src
+          cmake -S image-src -B image-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/deps \
+            -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DSDL2IMAGE_SAMPLES=OFF \
+            -DSDL2IMAGE_AVIF=OFF -DSDL2IMAGE_JXL=OFF -DSDL2IMAGE_TIF=OFF -DSDL2IMAGE_WEBP=OFF
+          cmake --build image-build -j && cmake --install image-build
       - name: Build
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$PWD/deps \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
           cmake --build build -j
+          ldd build/apple2e_emulator
+          # Only SDL2 may be needed beyond the C library
+          ! ldd build/apple2e_emulator | grep -Ei 'SDL2_image|libstdc|libpng|libjpeg|libtiff|libwebp'
+          grep -q HAVE_SDL_IMAGE build/compile_commands.json
       - name: Package
         run: |
           name=apple2e-emulator-${{ github.ref_name }}-linux-x86_64
           tools/package.sh "$name"
           cp build/apple2e_emulator "$name/"
           cat > "$name/INSTALL.txt" <<'TXT'
-          Needs SDL2 and SDL2_image (and zenity for the file dialogs):
-            Debian/Ubuntu: sudo apt install libsdl2-2.0-0 libsdl2-image-2.0-0 zenity
-            Fedora:        sudo dnf install SDL2 SDL2_image zenity
+          Needs SDL2 (and zenity for the file dialogs):
+            Debian/Ubuntu: sudo apt install libsdl2-2.0-0 zenity
+            Fedora:        sudo dnf install SDL2 zenity
+            Arch:          sudo pacman -S sdl2 zenity
           Then run ./apple2e_emulator
           TXT
           (cd "$name" && ./apple2e_emulator --headless 60 | tee ../smoke.log)
