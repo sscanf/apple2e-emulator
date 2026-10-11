@@ -218,7 +218,8 @@ SDL_Rect Apple2e::screenRect() const {
 int Apple2e::panelX() const { return m_crt ? CrtDisplay::kWidth : kPanelX; }
 
 SDL_Point Apple2e::logicalSize() const {
-  int panel = static_cast<int>(std::lround(SidePanel::kWidth * m_panelShown));
+  // While the panel slides the window keeps room for all of it
+  int panel = m_panelSliding || m_panelShown > 0 ? SidePanel::kWidth : 0;
   if (m_crt)
     return {CrtDisplay::kWidth + panel, CrtDisplay::kHeight};
   return {kPanelX + panel, kLogicalHeight};
@@ -261,11 +262,13 @@ void Apple2e::setPanelHidden(bool hidden, bool animate) {
     relayout(oldSize);
     return;
   }
-  // Slide at the current zoom; updatePanelSlide() moves it frame by frame
-  m_panelShown = hidden ? 0.0f : 1.0f; // only to measure the final size
-  m_slideZoom = zoomFor(oldSize, logicalSize());
-  m_panelShown = smoothStep(m_slideT);
-  m_panelSliding = true;
+  // The window is resized once, not on every frame (that made the picture
+  // tremble): it grows before the panel slides out, and shrinks after the
+  // panel has slid away. updatePanelSlide() moves the panel.
+  if (!m_panelSliding) {
+    m_panelSliding = true;
+    relayout(oldSize);
+  }
 }
 
 void Apple2e::updatePanelSlide(float seconds) {
@@ -275,9 +278,19 @@ void Apple2e::updatePanelSlide(float seconds) {
   m_slideT = m_panelHidden ? std::max(0.0f, m_slideT - step)
                            : std::min(1.0f, m_slideT + step);
   m_panelShown = smoothStep(m_slideT);
-  if (m_slideT <= 0.0f || m_slideT >= 1.0f)
-    m_panelSliding = false; // the last step restores the normal layout
-  applyLayout(m_slideZoom);
+  if (m_slideT <= 0.0f || m_slideT >= 1.0f) {
+    SDL_Point oldSize = logicalSize();
+    m_panelSliding = false;
+    relayout(oldSize);
+  } else {
+    placePanel();
+  }
+}
+
+// Partly shown, the panel's left part is under the monitor
+void Apple2e::placePanel() {
+  int hiddenWidth = static_cast<int>(std::lround(SidePanel::kWidth * (1.0f - m_panelShown)));
+  m_sidePanel->setGeometry(panelX() - hiddenWidth, logicalSize().y);
 }
 
 // The window's zoom now (it shows `oldSize`), limited so that `newSize` fits
@@ -296,30 +309,12 @@ float Apple2e::zoomFor(SDL_Point oldSize, SDL_Point newSize) const {
 // Place the panel and size the window for the current layout
 void Apple2e::applyLayout(float zoom) {
   SDL_Point size = logicalSize();
-  // Partly shown, the panel's left part is under the monitor
-  m_sidePanel->setGeometry(size.x - SidePanel::kWidth, size.y);
+  placePanel();
   if (!m_window || !m_renderer)
     return;
-
-  int w = static_cast<int>(std::lround(size.x * zoom));
-  int h = static_cast<int>(std::lround(size.y * zoom));
-  if (!m_panelSliding) {
-    SDL_RenderSetScale(m_renderer, 1.0f, 1.0f);
-    SDL_RenderSetLogicalSize(m_renderer, size.x, size.y);
-    SDL_SetWindowSize(m_window, w, h);
-    return;
-  }
-  // While sliding, the window's width rarely matches the logical width times
-  // the zoom exactly, and SDL's logical size would rescale and recentre the
-  // picture a fraction of a pixel on every frame (the monitor trembles).
-  // Draw at a scale fixed by the height instead, anchored at the left.
-  SDL_RenderSetLogicalSize(m_renderer, 0, 0);
-  SDL_SetWindowSize(m_window, w, h);
-  int outW, outH;
-  SDL_GetRendererOutputSize(m_renderer, &outW, &outH);
-  SDL_RenderSetViewport(m_renderer, nullptr);
-  float scale = static_cast<float>(outH) / size.y;
-  SDL_RenderSetScale(m_renderer, scale, scale);
+  SDL_RenderSetLogicalSize(m_renderer, size.x, size.y);
+  SDL_SetWindowSize(m_window, static_cast<int>(std::lround(size.x * zoom)),
+                    static_cast<int>(std::lround(size.y * zoom)));
 }
 
 // The layout changed (monitor style or side panel): resize the window for it,
