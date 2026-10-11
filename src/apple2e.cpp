@@ -135,6 +135,7 @@ constexpr float kPanelSlideSeconds = 0.25f;
 // mouse; it stays in view when the panel is hidden
 constexpr int kHandleWidth = 12;
 constexpr int kHandleHeight = 64;
+constexpr int kInnerHandleWidth = 8; // the handle inside the main window
 constexpr int kPanelWindowWidth = SidePanel::kWidth + kHandleWidth;
 
 float smoothStep(float t) { return t * t * (3.0f - 2.0f * t); }
@@ -525,23 +526,34 @@ bool Apple2e::handlePanelHandle(const SDL_Event &event) {
   return true;
 }
 
-// The handle: a tab half way up the panel's outer edge
+// The handle: a tab half way up the panel's outer edge. Where the panel has
+// its own window the tab sticks out of it; otherwise it lies inside the main
+// window's right edge, narrower so as not to cover the drives.
 SDL_Rect Apple2e::panelHandleRect() const {
-  return {SidePanel::kWidth, logicalSize().y / 2 - kHandleHeight / 2, kHandleWidth, kHandleHeight};
+  SDL_Point size = logicalSize();
+  int y = size.y / 2 - kHandleHeight / 2;
+  if (m_drawer)
+    return {SidePanel::kWidth, y, kHandleWidth, kHandleHeight};
+  return {size.x - kInnerHandleWidth, y, kInnerHandleWidth, kHandleHeight};
 }
 
 void Apple2e::drawPanelHandle(SDL_Renderer *renderer) const {
   SDL_Rect tab = panelHandleRect();
-  // Rounded on the outside
+  // Rounded on the side away from the edge it hangs from
+  bool roundLeft = !m_drawer;
   SDL_SetRenderDrawColor(renderer, 0x3A, 0x3B, 0x3E, 255);
-  SDL_Rect parts[] = {{tab.x, tab.y, tab.w - 3, tab.h},
-                      {tab.x + tab.w - 3, tab.y + 1, 1, tab.h - 2},
-                      {tab.x + tab.w - 2, tab.y + 2, 1, tab.h - 4},
-                      {tab.x + tab.w - 1, tab.y + 4, 1, tab.h - 8}};
-  SDL_RenderFillRects(renderer, parts, 4);
-  // Grip: three ridges, each a light line with a shadow
+  SDL_Rect parts[4];
   for (int i = 0; i < 3; i++) {
-    int x = tab.x + 2 + i * 3;
+    int inset[] = {4, 2, 1};
+    int x = roundLeft ? tab.x + i : tab.x + tab.w - 1 - i;
+    parts[i] = {x, tab.y + inset[i], 1, tab.h - 2 * inset[i]};
+  }
+  parts[3] = {roundLeft ? tab.x + 3 : tab.x, tab.y, tab.w - 3, tab.h};
+  SDL_RenderFillRects(renderer, parts, 4);
+  // Grip: ridges, each a light line with a shadow
+  int ridges = tab.w >= 11 ? 3 : 2;
+  for (int i = 0; i < ridges; i++) {
+    int x = tab.x + (roundLeft ? 3 : 2) + i * 3;
     int top = tab.y + 12, bottom = tab.y + tab.h - 13;
     SDL_SetRenderDrawColor(renderer, 0x8A, 0x8C, 0x90, 255);
     SDL_RenderDrawLine(renderer, x, top, x, bottom);
@@ -955,6 +967,17 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
   if (m_menuBar && m_menuBar->handleEvent(event))
     return;
 
+  // The panel's handle inside the window: a click hides or shows the panel
+  if (!m_drawer && event.type == SDL_MOUSEBUTTONDOWN &&
+      event.button.button == SDL_BUTTON_LEFT) {
+    SDL_Point p = {event.button.x, event.button.y};
+    SDL_Rect tab = panelHandleRect();
+    if (SDL_PointInRect(&p, &tab)) {
+      runCommand(Command::TogglePanel, false);
+      return;
+    }
+  }
+
   if (event.type == SDL_KEYDOWN) {
     SDL_Keycode key = event.key.keysym.sym;
     SDL_Keymod mod = static_cast<SDL_Keymod>(event.key.keysym.mod);
@@ -1040,6 +1063,8 @@ void Apple2e::run() {
       m_crtDisplay->setCurvature(m_curvature);
     }
     compose(m_renderer, m_video.frameTexture(), m_crtDisplay.get());
+    if (!m_drawer)
+      drawPanelHandle(m_renderer);
     if (m_menuBar)
       m_menuBar->draw(m_renderer, logicalSize().x);
     SDL_RenderPresent(m_renderer);
