@@ -416,7 +416,25 @@ void Apple2e::layoutPanelWindow() {
 // The panel beside the main window, as wide as the part of it that shows
 // (its picture keeps to the right edge, so the left part is the one cut
 // off, as if it were under the monitor), and the handle at its outer edge
+// Take the panel's windows off the screen while the main window is
+// minimised or hidden, and bring them back with it
+void Apple2e::setPanelWindowsParked(bool parked) {
+  if (parked == m_panelWindowsParked)
+    return;
+  m_panelWindowsParked = parked;
+  if (parked) {
+    SDL_HideWindow(m_panelWindow);
+    SDL_HideWindow(m_handleWindow);
+    m_panelWindowShown = false;
+  } else {
+    SDL_ShowWindow(m_handleWindow);
+    placeWindowsAbove();
+  }
+}
+
 void Apple2e::placeWindowsAbove() {
+  if (m_panelWindowsParked)
+    return;
   int x, y, w, h;
   SDL_GetWindowPosition(m_window, &x, &y);
   SDL_GetWindowSize(m_window, &w, &h);
@@ -939,6 +957,15 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
     bool main = event.window.windowID == SDL_GetWindowID(m_window);
     if (event.window.event == SDL_WINDOWEVENT_CLOSE)
       running = false; // with two windows, closing one is not SDL_QUIT
+    else if (main && m_panelAbove &&
+             (event.window.event == SDL_WINDOWEVENT_MINIMIZED ||
+              event.window.event == SDL_WINDOWEVENT_HIDDEN))
+      setPanelWindowsParked(true); // they do not go away with the main one
+    else if (main && m_panelAbove &&
+             (event.window.event == SDL_WINDOWEVENT_RESTORED ||
+              event.window.event == SDL_WINDOWEVENT_SHOWN ||
+              event.window.event == SDL_WINDOWEVENT_MAXIMIZED))
+      setPanelWindowsParked(false);
     else if (main && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
       layoutPanelWindow();
     else if (main && event.window.event == SDL_WINDOWEVENT_MOVED)

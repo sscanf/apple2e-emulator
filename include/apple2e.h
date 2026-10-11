@@ -111,6 +111,7 @@ private:
     void layoutPanelWindow();
     void placePanelWindow();
     void placeWindowsAbove();
+    void setPanelWindowsParked(bool parked);
     bool overPanelHandle(const SDL_Event& event, int x, int y) const;
     float panelTravel() const;
     bool handlePanelHandle(const SDL_Event& event);
@@ -156,6 +157,7 @@ private:
     // one, cut to the part that shows, and the handle has its own window
     bool m_panelAbove = false;
     bool m_panelWindowShown = true;
+    bool m_panelWindowsParked = false;  // hidden with the minimised main window
     SDL_Window* m_handleWindow = nullptr;
     SDL_Renderer* m_handleRenderer = nullptr;
     std::unique_ptr<MenuBar> m_menuBar;  // in the window, where menus go there
