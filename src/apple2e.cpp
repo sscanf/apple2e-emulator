@@ -275,9 +275,9 @@ void Apple2e::updatePanelSlide(float seconds) {
   m_slideT = m_panelHidden ? std::max(0.0f, m_slideT - step)
                            : std::min(1.0f, m_slideT + step);
   m_panelShown = smoothStep(m_slideT);
-  applyLayout(m_slideZoom);
   if (m_slideT <= 0.0f || m_slideT >= 1.0f)
-    m_panelSliding = false;
+    m_panelSliding = false; // the last step restores the normal layout
+  applyLayout(m_slideZoom);
 }
 
 // The window's zoom now (it shows `oldSize`), limited so that `newSize` fits
@@ -300,9 +300,26 @@ void Apple2e::applyLayout(float zoom) {
   m_sidePanel->setGeometry(size.x - SidePanel::kWidth, size.y);
   if (!m_window || !m_renderer)
     return;
-  SDL_RenderSetLogicalSize(m_renderer, size.x, size.y);
-  SDL_SetWindowSize(m_window, static_cast<int>(std::lround(size.x * zoom)),
-                    static_cast<int>(std::lround(size.y * zoom)));
+
+  int w = static_cast<int>(std::lround(size.x * zoom));
+  int h = static_cast<int>(std::lround(size.y * zoom));
+  if (!m_panelSliding) {
+    SDL_RenderSetScale(m_renderer, 1.0f, 1.0f);
+    SDL_RenderSetLogicalSize(m_renderer, size.x, size.y);
+    SDL_SetWindowSize(m_window, w, h);
+    return;
+  }
+  // While sliding, the window's width rarely matches the logical width times
+  // the zoom exactly, and SDL's logical size would rescale and recentre the
+  // picture a fraction of a pixel on every frame (the monitor trembles).
+  // Draw at a scale fixed by the height instead, anchored at the left.
+  SDL_RenderSetLogicalSize(m_renderer, 0, 0);
+  SDL_SetWindowSize(m_window, w, h);
+  int outW, outH;
+  SDL_GetRendererOutputSize(m_renderer, &outW, &outH);
+  SDL_RenderSetViewport(m_renderer, nullptr);
+  float scale = static_cast<float>(outH) / size.y;
+  SDL_RenderSetScale(m_renderer, scale, scale);
 }
 
 // The layout changed (monitor style or side panel): resize the window for it,
@@ -646,9 +663,9 @@ void Apple2e::run() {
     while (SDL_PollEvent(&event))
       handleEvent(event, running);
     m_sidePanel->update();
-    updatePanelSlide(static_cast<float>(frameSeconds));
 
     runFrame();
+    updatePanelSlide(static_cast<float>(frameSeconds));
     if (m_crt && !m_crtDisplay) {
       m_crtDisplay = std::make_unique<CrtDisplay>(m_renderer, m_bezel);
       m_crtDisplay->setCurvature(m_curvature);
