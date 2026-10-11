@@ -467,17 +467,6 @@ void Apple2e::drawPanelHandle(SDL_Renderer *renderer, int height) const {
     SDL_SetRenderDrawColor(renderer, 0x1C, 0x1C, 0x1E, 255);
     SDL_RenderDrawLine(renderer, x + 1, top, x + 1, bottom);
   }
-  // Arrows above and below: the way the panel goes when the handle is clicked
-  int dir = m_panelHidden ? 1 : -1;
-  int cx = strip.x + kHandleWidth / 2;
-  SDL_SetRenderDrawColor(renderer, 0xB8, 0xBA, 0xBE, 255);
-  for (int cy : {height / 2 - 32, height / 2 + 32}) {
-    for (int thick = 0; thick < 2; thick++) {
-      int tipX = cx + dir * 2 + thick * dir, backX = cx - dir * 2 + thick * dir;
-      SDL_RenderDrawLine(renderer, backX, cy - 4, tipX, cy);
-      SDL_RenderDrawLine(renderer, tipX, cy, backX, cy + 4);
-    }
-  }
 }
 
 // The window's zoom now (it shows `oldSize`), limited so that `newSize` fits
