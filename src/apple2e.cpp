@@ -190,6 +190,9 @@ bool Apple2e::init(const std::string &romPath, const std::string &diskRomPath,
       return false;
     }
     m_sdlInitialized = true;
+    // A click on a window that is not the active one acts at once, instead
+    // of only activating it (the side panel has its own window)
+    SDL_SetHint(SDL_HINT_MOUSE_FOCUS_CLICKTHROUGH, "1");
 
     m_window = SDL_CreateWindow(
         "Apple IIe", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
