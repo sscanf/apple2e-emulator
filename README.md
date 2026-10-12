@@ -22,6 +22,29 @@ Enhanced Apple IIe emulator in C++20 with SDL2.
 - Disk II controller in slot 6 with two drives (.dsk/.do/.po/.nib, read and write),
   shown in a side panel; boots DOS 3.3 and ProDOS
 
+## Download
+
+Ready-made packages for macOS, Linux and Windows are on the
+[releases page](https://github.com/sscanf/apple2e-emulator/releases/latest).
+
+**macOS:** open the `.dmg` and drag *Apple IIe* onto *Applications*. The app is
+not signed by Apple, so macOS refuses to open it the first time. Run this once
+in Terminal and it will open normally from then on:
+
+```sh
+xattr -cr "/Applications/Apple IIe.app"
+```
+
+(Or try to open it, dismiss the warning, and click *Open Anyway* in
+*System Settings → Privacy & Security*.)
+
+**Linux:** unpack the `.tar.gz` and run `./apple2e_emulator`. It needs SDL2,
+and zenity for the file dialogs (`sudo apt install libsdl2-2.0-0 zenity` on
+Debian and Ubuntu).
+
+**Windows:** extract the whole `.zip` and run `apple2e_emulator.exe` from the
+extracted folder.
+
 ## Build
 
 Requires CMake 3.20+ and SDL2 (`brew install sdl2`). SDL2_image
