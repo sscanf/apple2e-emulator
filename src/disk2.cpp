@@ -315,6 +315,37 @@ void Disk2Controller::stepPhase(int phase, bool on) {
 
 // $C0n0-$C0nF: 0-7 phases off/on, 8/9 motor, A/B drive select,
 // C/D Q6 (shift/load), E/F Q7 (read/write). Even addresses access the latch.
+// The disk goes round in a fixed time whatever is written on it, and a
+// formatter relies on that: it writes a whole track and, if that took longer
+// than a revolution, its end has run over its beginning; it then tries again
+// with shorter gaps until the track just fits. Nibbles are stored one per
+// cell here, not by time, and a turn's worth of writing fills fewer cells
+// than a track has. So, while a stretch of writing goes on for more than a
+// turn, only what was written during the last turn is kept: every other cell
+// of the track is blanked to gap, as if it had been written over.
+// Call after storing a nibble, with the head on the next cell.
+void Disk2Controller::trackWriteTime(Drive &drive, int track) {
+    constexpr uint64_t kRevolutionCycles = 204097; // 300 rpm at 1.0205 MHz
+    constexpr uint64_t kPauseCycles      = 2000;   // longer than any pause within a track
+    constexpr size_t   kCells            = DiskImage::kTrackBytes;
+
+    bool sameStretch = m_writeDrive == &drive && m_writeTrack == track && !m_writeCycles.empty() && m_cycles - m_writeCycles.back() < kPauseCycles;
+    if (!sameStretch) {
+        m_writeCycles.clear();
+        m_writeDrive = &drive;
+        m_writeTrack = track;
+    }
+    m_writeCycles.push_back(m_cycles);
+    if (m_cycles - m_writeCycles.front() < kRevolutionCycles)
+        return;
+
+    while (m_cycles - m_writeCycles.front() >= kRevolutionCycles)
+        m_writeCycles.pop_front();
+    size_t kept = std::min(m_writeCycles.size(), kCells);
+    for (size_t i = 0; i < kCells - kept; i++)
+        drive.disk.writeNibble(track, drive.position + i, 0xFF);
+}
+
 uint8_t Disk2Controller::io(uint8_t reg, bool isWrite, uint8_t val) {
     switch (reg) {
         case 0x0:
@@ -369,6 +400,7 @@ uint8_t Disk2Controller::io(uint8_t reg, bool isWrite, uint8_t val) {
         if (!m_q6 && spinning() && disk.loaded()) {
             disk.writeNibble(track, drive.position, m_latch);
             drive.position = (drive.position + 1) % DiskImage::kTrackBytes;
+            trackWriteTime(drive, track);
         }
     } else if (m_q6) {
         // Sense write protect in bit 7

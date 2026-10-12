@@ -4,6 +4,7 @@
 
 #include <array>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <string>
 #include <vector>
@@ -105,6 +106,7 @@ private:
     };
 
     void   stepPhase(int phase, bool on);
+    void   trackWriteTime(Drive &drive, int track);
     Drive &current() { return m_drives[m_selected]; }
 
     const uint64_t                          &m_cycles;
@@ -120,6 +122,12 @@ private:
     uint8_t                    m_phases      = 0;
     uint8_t                    m_latch       = 0;
     bool                       m_nibbleReady = false;
+
+    // The stretch of writing in progress: when each nibble of its last
+    // revolution was written (see trackWriteTime)
+    const Drive         *m_writeDrive = nullptr;
+    int                  m_writeTrack = 0;
+    std::deque<uint64_t> m_writeCycles;
 };
 
 } // namespace apple2e
