@@ -112,6 +112,7 @@ private:
     void placePanelWindow();
     void placeWindowsAbove();
     void setPanelWindowsParked(bool parked);
+    static int watchMainWindow(void* userdata, SDL_Event* event);
     bool overPanelHandle(const SDL_Event& event, int x, int y) const;
     float panelTravel() const;
     bool handlePanelHandle(const SDL_Event& event);

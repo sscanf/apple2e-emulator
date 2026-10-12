@@ -88,6 +88,8 @@ Apple2e::~Apple2e() {
     SDL_FreeSurface(m_bezel);
   if (m_hasDisk2)
     m_disk2.flush();
+  if (m_panelAbove)
+    SDL_DelEventWatch(watchMainWindow, this);
   m_sidePanel.reset(); // its textures belong to one of the renderers
   if (m_resizeCursor)
     SDL_FreeCursor(m_resizeCursor);
@@ -376,6 +378,7 @@ void Apple2e::createPanelWindow() {
     if (ok) {
       SDL_RenderSetLogicalSize(m_handleRenderer, kHandleWidth, kHandleHeight);
       m_panelAbove = true;
+      SDL_AddEventWatch(watchMainWindow, this);
     }
   }
   if (ok) {
@@ -416,6 +419,19 @@ void Apple2e::layoutPanelWindow() {
 // The panel beside the main window, as wide as the part of it that shows
 // (its picture keeps to the right edge, so the left part is the one cut
 // off, as if it were under the monitor), and the handle at its outer edge
+// While a window is dragged or resized, Windows keeps the program inside
+// its own loop and the events only reach the queue afterwards; a watch sees
+// them as they happen, so the panel's windows can keep up with the main one
+int Apple2e::watchMainWindow(void *userdata, SDL_Event *event) {
+  auto *self = static_cast<Apple2e *>(userdata);
+  if (event->type == SDL_WINDOWEVENT && self->m_window &&
+      event->window.windowID == SDL_GetWindowID(self->m_window) &&
+      (event->window.event == SDL_WINDOWEVENT_MOVED ||
+       event->window.event == SDL_WINDOWEVENT_SIZE_CHANGED))
+    self->placeWindowsAbove();
+  return 0;
+}
+
 // Take the panel's windows off the screen while the main window is
 // minimised or hidden, and bring them back with it
 void Apple2e::setPanelWindowsParked(bool parked) {
