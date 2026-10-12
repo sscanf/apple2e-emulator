@@ -106,6 +106,7 @@ jobs:
           # In a bundle the emulator looks for its files in Contents/Resources
           tools/package.sh "$app/Contents/Resources"
           cp build/apple2e_emulator "$app/Contents/MacOS/"
+          cp assets/icon/AppIcon.icns "$app/Contents/Resources/"
           cat > "$app/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -116,6 +117,7 @@ jobs:
             <key>CFBundleIdentifier</key><string>com.github.sscanf.apple2e-emulator</string>
             <key>CFBundleExecutable</key><string>apple2e_emulator</string>
             <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleIconFile</key><string>AppIcon</string>
             <key>CFBundleShortVersionString</key><string>${version#v}</string>
             <key>CFBundleVersion</key><string>${{ github.run_number }}</string>
             <key>LSMinimumSystemVersion</key><string>11.0</string>
@@ -126,12 +128,10 @@ jobs:
           codesign --force --deep -s - "$app"
           (cd / && "$OLDPWD/$app/Contents/MacOS/apple2e_emulator" --headless 60) | tee smoke.log
           grep -q "Disk II ROM loaded" smoke.log
-          # Disk image with the app and a shortcut to drag it onto
-          mkdir dmg
-          cp -R "$app" dmg/
-          ln -s /Applications dmg/Applications
+          # Disk image that opens showing the app and Applications, to drag
+          # one onto the other
           dmg="apple2e-emulator-$version-macos-universal.dmg"
-          hdiutil create -volname "Apple IIe" -srcfolder dmg -ov -format UDZO "$dmg"
+          pipx run dmgbuild -s tools/dmg_settings.py -D app="$app" "Apple IIe" "$dmg"
           # The app must still find its files from inside the image
           hdiutil attach "$dmg" -nobrowse -readonly -mountpoint mnt
           (cd / && "$OLDPWD/mnt/$app/Contents/MacOS/apple2e_emulator" --headless 60) | tee smoke-dmg.log
