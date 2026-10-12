@@ -4,13 +4,13 @@
 namespace apple2e {
 
 void KeyboardController::reset() {
-    m_latch = 0;
+    m_latch  = 0;
     m_strobe = false;
     m_pending.clear();
 }
 
 void KeyboardController::press(uint8_t ascii) {
-    m_latch = ascii & 0x7F;
+    m_latch  = ascii & 0x7F;
     m_strobe = true;
 }
 
@@ -19,18 +19,22 @@ uint8_t KeyboardController::clearStrobe() {
     return (m_keysHeld > 0 ? 0x80 : 0x00) | m_latch;
 }
 
-void KeyboardController::queueText(const std::string& text) {
+void KeyboardController::queueText(const std::string &text) {
     for (char c : text) {
         uint8_t ch = static_cast<uint8_t>(c);
-        if (ch == '\r') continue;
-        if (ch == '\n') ch = 0x0D;
-        if (ch >= 0x80) continue;
+        if (ch == '\r')
+            continue;
+        if (ch == '\n')
+            ch = 0x0D;
+        if (ch >= 0x80)
+            continue;
         m_pending.push_back(ch);
     }
 }
 
 void KeyboardController::update() {
-    if (m_scriptedOpenApple > 0) m_scriptedOpenApple--;
+    if (m_scriptedOpenApple > 0)
+        m_scriptedOpenApple--;
     if (m_pauseFrames > 0) {
         m_pauseFrames--;
         return;
@@ -43,57 +47,83 @@ void KeyboardController::update() {
         } else if (ch == kOpenAppleChar) {
             m_nextKeyOpenApple = true;
         } else {
-            if (m_nextKeyOpenApple) m_scriptedOpenApple = 10;  // held while software reads it
+            if (m_nextKeyOpenApple)
+                m_scriptedOpenApple = 10; // held while software reads it
             m_nextKeyOpenApple = false;
             press(ch);
         }
     }
 }
 
-void KeyboardController::handleEvent(const SDL_Event& event) {
+void KeyboardController::handleEvent(const SDL_Event &event) {
     switch (event.type) {
         case SDL_TEXTINPUT: {
             SDL_Keymod mod = SDL_GetModState();
-            if (mod & (KMOD_CTRL | KMOD_GUI)) break;  // handled as key events
+            if (mod & (KMOD_CTRL | KMOD_GUI))
+                break; // handled as key events
             bool ascii = true;
-            for (const char* p = event.text.text; *p; ++p) {
-                if (static_cast<uint8_t>(*p) >= 0x80) ascii = false;
+            for (const char *p = event.text.text; *p; ++p) {
+                if (static_cast<uint8_t>(*p) >= 0x80)
+                    ascii = false;
             }
             if (m_optionKey) {
                 // Option+key: macOS made it a character the Apple lacks (e.g.
                 // Option+Q -> "oe"), so send the key itself with Open Apple held
-                if (!ascii) press(m_optionKey);
+                if (!ascii)
+                    press(m_optionKey);
                 m_optionKey = 0;
-                if (!ascii) break;
+                if (!ascii)
+                    break;
             }
-            for (const char* p = event.text.text; *p; ++p) {
+            for (const char *p = event.text.text; *p; ++p) {
                 uint8_t ch = static_cast<uint8_t>(*p);
-                if (ch >= 0x80) continue;  // non-ASCII has no Apple equivalent
-                press(ch);  // case already follows the Mac's Caps Lock and Shift
+                if (ch >= 0x80)
+                    continue; // non-ASCII has no Apple equivalent
+                press(ch);    // case already follows the Mac's Caps Lock and Shift
             }
             break;
         }
 
         case SDL_KEYDOWN: {
             SDL_Keycode key = event.key.keysym.sym;
-            SDL_Keymod mod = static_cast<SDL_Keymod>(event.key.keysym.mod);
+            SDL_Keymod  mod = static_cast<SDL_Keymod>(event.key.keysym.mod);
 
-            if (key == SDLK_LALT) m_openApple = true;
-            if (key == SDLK_RALT) m_solidApple = true;
-            if (!event.key.repeat) m_keysHeld++;
+            if (key == SDLK_LALT)
+                m_openApple = true;
+            if (key == SDLK_RALT)
+                m_solidApple = true;
+            if (!event.key.repeat)
+                m_keysHeld++;
 
             switch (key) {
                 case SDLK_RETURN:
-                case SDLK_KP_ENTER:  press(0x0D); return;
+                case SDLK_KP_ENTER:
+                    press(0x0D);
+                    return;
                 case SDLK_BACKSPACE:
-                case SDLK_LEFT:      press(0x08); return;
-                case SDLK_RIGHT:     press(0x15); return;
-                case SDLK_UP:        press(0x0B); return;
-                case SDLK_DOWN:      press(0x0A); return;
-                case SDLK_ESCAPE:    press(0x1B); return;
-                case SDLK_TAB:       press(0x09); return;
-                case SDLK_DELETE:    press(0x7F); return;
-                default: break;
+                case SDLK_LEFT:
+                    press(0x08);
+                    return;
+                case SDLK_RIGHT:
+                    press(0x15);
+                    return;
+                case SDLK_UP:
+                    press(0x0B);
+                    return;
+                case SDLK_DOWN:
+                    press(0x0A);
+                    return;
+                case SDLK_ESCAPE:
+                    press(0x1B);
+                    return;
+                case SDLK_TAB:
+                    press(0x09);
+                    return;
+                case SDLK_DELETE:
+                    press(0x7F);
+                    return;
+                default:
+                    break;
             }
 
             // CTRL+letter produces control codes $01-$1A
@@ -105,10 +135,11 @@ void KeyboardController::handleEvent(const SDL_Event& event) {
             // Option (Open/Solid Apple) + printable key: decided when macOS
             // reports the text it made of it (or on key-up for dead keys)
             if ((mod & KMOD_ALT) && key >= SDLK_SPACE && key <= SDLK_z && !event.key.repeat) {
-                uint8_t base = static_cast<uint8_t>(key);
-                bool upper = (mod & (KMOD_SHIFT | KMOD_CAPS)) != 0;
-                if (base >= 'a' && base <= 'z' && upper) base -= 0x20;
-                m_optionKey = base;
+                uint8_t base  = static_cast<uint8_t>(key);
+                bool    upper = (mod & (KMOD_SHIFT | KMOD_CAPS)) != 0;
+                if (base >= 'a' && base <= 'z' && upper)
+                    base -= 0x20;
+                m_optionKey     = base;
                 m_optionKeycode = key;
             }
             break;
@@ -120,9 +151,12 @@ void KeyboardController::handleEvent(const SDL_Event& event) {
                 press(m_optionKey);
                 m_optionKey = 0;
             }
-            if (event.key.keysym.sym == SDLK_LALT) m_openApple = false;
-            if (event.key.keysym.sym == SDLK_RALT) m_solidApple = false;
-            if (m_keysHeld > 0) m_keysHeld--;
+            if (event.key.keysym.sym == SDLK_LALT)
+                m_openApple = false;
+            if (event.key.keysym.sym == SDLK_RALT)
+                m_solidApple = false;
+            if (m_keysHeld > 0)
+                m_keysHeld--;
             break;
 
         default:
@@ -130,12 +164,12 @@ void KeyboardController::handleEvent(const SDL_Event& event) {
     }
 }
 
-void KeyboardController::saveState(StateWriter& w) const {
+void KeyboardController::saveState(StateWriter &w) const {
     w.put(m_latch);
     w.put(m_strobe);
 }
 
-void KeyboardController::loadState(StateReader& r) {
+void KeyboardController::loadState(StateReader &r) {
     r.get(m_latch);
     r.get(m_strobe);
     m_pending.clear();

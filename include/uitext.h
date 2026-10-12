@@ -13,7 +13,7 @@ namespace apple2e {
 // 5x7 font, one renderer unit per dot
 inline constexpr int kCharWidth = 6;
 
-inline void drawText(SDL_Renderer* r, int x, int y, const std::string& text, SDL_Color c) {
+inline void drawText(SDL_Renderer *r, int x, int y, const std::string &text, SDL_Color c) {
     std::vector<SDL_Rect> dots;
     for (char ch : text) {
         auto code = static_cast<unsigned char>(ch);
@@ -21,7 +21,8 @@ inline void drawText(SDL_Renderer* r, int x, int y, const std::string& text, SDL
             for (int row = 0; row < 8; row++) {
                 uint8_t bits = glyphRow(code, row);
                 for (int col = 0; col < 5; col++) {
-                    if (bits & (0x10 >> col)) dots.push_back({x + col, y + row, 1, 1});
+                    if (bits & (0x10 >> col))
+                        dots.push_back({x + col, y + row, 1, 1});
                 }
             }
         }

@@ -17,25 +17,25 @@ namespace {
 class FlatBus : public apple2e::Bus {
 public:
     std::array<uint8_t, 0x10000> mem{};
-    uint8_t read(uint16_t addr) override { return mem[addr]; }
-    void write(uint16_t addr, uint8_t val) override { mem[addr] = val; }
+    uint8_t                      read(uint16_t addr) override { return mem[addr]; }
+    void                         write(uint16_t addr, uint8_t val) override { mem[addr] = val; }
 };
 
 } // namespace
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     if (argc < 2) {
         std::fprintf(stderr, "usage: %s <program.com>\n", argv[0]);
         return 2;
     }
 
-    FlatBus bus;
+    FlatBus       bus;
     std::ifstream file(argv[1], std::ios::binary);
     if (!file) {
         std::fprintf(stderr, "cannot open %s\n", argv[1]);
         return 2;
     }
-    file.read(reinterpret_cast<char*>(&bus.mem[0x100]), 0x10000 - 0x100);
+    file.read(reinterpret_cast<char *>(&bus.mem[0x100]), 0x10000 - 0x100);
 
     // Warm boot at 0 ends the program; BDOS entry at 5 (JP to the top of
     // memory, which the programs use to place their stack)
@@ -47,9 +47,10 @@ int main(int argc, char* argv[]) {
     cpu.setPC(0x100);
 
     std::string output;
-    uint64_t tstates = 0;
+    uint64_t    tstates = 0;
     for (;;) {
-        if (cpu.pc() == 0x0000) break;
+        if (cpu.pc() == 0x0000)
+            break;
         if (cpu.pc() == 0x0005) {
             if (cpu.c() == 2) {
                 output += static_cast<char>(cpu.e());

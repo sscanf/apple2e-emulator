@@ -16,7 +16,10 @@ public:
     virtual uint8_t rom(uint8_t offset) const = 0;
 
     // Write to the slot ROM space (most cards ignore it)
-    virtual void romWrite(uint8_t offset, uint8_t val) { (void)offset; (void)val; }
+    virtual void romWrite(uint8_t offset, uint8_t val) {
+        (void)offset;
+        (void)val;
+    }
 };
 
 } // namespace apple2e

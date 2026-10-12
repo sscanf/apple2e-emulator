@@ -11,22 +11,21 @@ class KeyboardController;
 class AudioController;
 
 // NTSC timing: 65 cycles per scanline, 262 scanlines per frame
-constexpr uint32_t kCyclesPerLine = 65;
-constexpr uint32_t kLinesPerFrame = 262;
-constexpr uint32_t kCyclesPerFrame = kCyclesPerLine * kLinesPerFrame;  // 17030
-constexpr uint32_t kVisibleLines = 192;
-constexpr double kCpuClockHz = 1020484.0;
+constexpr uint32_t kCyclesPerLine  = 65;
+constexpr uint32_t kLinesPerFrame  = 262;
+constexpr uint32_t kCyclesPerFrame = kCyclesPerLine * kLinesPerFrame; // 17030
+constexpr uint32_t kVisibleLines   = 192;
+constexpr double   kCpuClockHz     = 1020484.0;
 
 // $C000-$C0FF: keyboard, speaker, soft switches and slot I/O
 class IOController {
 public:
-    IOController(SoftSwitches& switches, KeyboardController& keyboard,
-                 AudioController& audio, GameIO& gameIO, const uint64_t& cycles);
+    IOController(SoftSwitches &switches, KeyboardController &keyboard, AudioController &audio, GameIO &gameIO, const uint64_t &cycles);
 
     uint8_t read(uint16_t addr);
-    void write(uint16_t addr, uint8_t val);
+    void    write(uint16_t addr, uint8_t val);
 
-    void setCard(int slot, Card* card) { m_cards[slot] = card; }
+    void setCard(int slot, Card *card) { m_cards[slot] = card; }
 
 private:
     // Switches that respond to both reads and writes
@@ -34,12 +33,12 @@ private:
     void accessLanguageCard(uint16_t addr, bool isRead);
     bool inVerticalBlank() const;
 
-    SoftSwitches& m_sw;
-    KeyboardController& m_keyboard;
-    AudioController& m_audio;
-    GameIO& m_gameIO;
-    const uint64_t& m_cycles;
-    Card* m_cards[8] = {};
+    SoftSwitches       &m_sw;
+    KeyboardController &m_keyboard;
+    AudioController    &m_audio;
+    GameIO             &m_gameIO;
+    const uint64_t     &m_cycles;
+    Card               *m_cards[8] = {};
 };
 
 } // namespace apple2e

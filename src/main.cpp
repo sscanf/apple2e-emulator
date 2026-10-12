@@ -12,15 +12,15 @@
 
 namespace {
 
-constexpr const char* kDefaultRom = "apple2e.rom";
-constexpr const char* kDiskRom = "disk2.rom";
-constexpr const char* kVideoRom = "video.rom";  // optional character generator
-constexpr const char* kRomsDir = "roms";        // where the ROM images are kept
+constexpr const char *kDefaultRom = "apple2e.rom";
+constexpr const char *kDiskRom    = "disk2.rom";
+constexpr const char *kVideoRom   = "video.rom"; // optional character generator
+constexpr const char *kRomsDir    = "roms";      // where the ROM images are kept
 
-constexpr const char* kSoundsDir = "sounds";              // your own recordings (not in git)
-constexpr const char* kBundledSoundsDir = "assets/sounds"; // shipped with the repository
-constexpr const char* kDriveImagesDir = "assets/drives";
-constexpr const char* kMonitorImageDir = "assets/monitor";
+constexpr const char *kSoundsDir        = "sounds";        // your own recordings (not in git)
+constexpr const char *kBundledSoundsDir = "assets/sounds"; // shipped with the repository
+constexpr const char *kDriveImagesDir   = "assets/drives";
+constexpr const char *kMonitorImageDir  = "assets/monitor";
 
 // Look for a support file or folder in the current directory, next to the
 // executable, and up to three levels above it (the project root for build/
@@ -29,48 +29,53 @@ constexpr const char* kMonitorImageDir = "assets/monitor";
 // DISK2.ROM. Empty if absent.
 std::vector<std::filesystem::path> searchDirs() {
     namespace fs = std::filesystem;
-    std::error_code ec;
+    std::error_code       ec;
     std::vector<fs::path> dirs = {fs::current_path(ec)};
-    if (char* base = SDL_GetBasePath()) {
-        fs::path dir = fs::path(base).parent_path();  // drop the trailing separator
+    if (char *base = SDL_GetBasePath()) {
+        fs::path dir = fs::path(base).parent_path(); // drop the trailing separator
         SDL_free(base);
         for (int up = 0; up <= 3 && !dir.empty(); up++, dir = dir.parent_path()) {
             dirs.push_back(dir);
-            if (dir == dir.root_path()) break;
+            if (dir == dir.root_path())
+                break;
         }
     }
     return dirs;
 }
 
-std::string findFile(const std::string& name) {
-    namespace fs = std::filesystem;
+std::string findFile(const std::string &name) {
+    namespace fs               = std::filesystem;
     std::vector<fs::path> dirs = searchDirs();
 
     auto lower = [](std::string s) {
-        for (char& c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        for (char &c : s)
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         return s;
     };
     // Names with a folder ("assets/sounds") are matched exactly
     bool plain = name.find('/') == std::string::npos;
 
     std::error_code ec;
-    for (const auto& base : dirs) {
+    for (const auto &base : dirs) {
         if (!plain) {
-            if (fs::path path = base / name; fs::exists(path, ec)) return path.string();
+            if (fs::path path = base / name; fs::exists(path, ec))
+                return path.string();
             continue;
         }
         // ROM images live in roms/; a loose copy beside it still works
-        for (const auto& dir : {base / kRomsDir, base}) {
-            if (fs::path path = dir / name; fs::exists(path, ec)) return path.string();
-            for (const auto& entry : fs::directory_iterator(dir, ec)) {
-                if (lower(entry.path().filename().string()) == lower(name)) return entry.path().string();
+        for (const auto &dir : {base / kRomsDir, base}) {
+            if (fs::path path = dir / name; fs::exists(path, ec))
+                return path.string();
+            for (const auto &entry : fs::directory_iterator(dir, ec)) {
+                if (lower(entry.path().filename().string()) == lower(name))
+                    return entry.path().string();
             }
         }
     }
     return {};
 }
 
-void usage(const char* argv0) {
+void usage(const char *argv0) {
     std::cerr << "usage: " << argv0 << " [rom] [--disk1 FILE] [--disk2 FILE] [--headless FRAMES]\n"
               << "       [--type TEXT] [--screenshot FILE]\n"
               << "  rom                 Apple IIe ROM image (default: roms/apple2e.rom here,\n"
@@ -97,20 +102,20 @@ void usage(const char* argv0) {
 
 } // namespace
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     std::string romPath;
     std::string typed;
     std::string screenshotPath;
     std::string recordDir;
-    int recordScale = 1;
+    int         recordScale = 1;
     std::string loadStatePath;
     std::string saveStatePath;
     std::string diskPaths[2];
-    int headlessFrames = -1;
-    int typeDelayFrames = 60;
-    bool green = false;
-    bool crt = false;
-    bool noPanel = false;
+    int         headlessFrames  = -1;
+    int         typeDelayFrames = 60;
+    bool        green           = false;
+    bool        crt             = false;
+    bool        noPanel         = false;
 
     for (int i = 1; i < argc; i++) {
         std::string arg = argv[i];
@@ -149,29 +154,40 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (romPath.empty()) romPath = findFile(kDefaultRom);
-    if (romPath.empty()) romPath = kDefaultRom;  // let init report it missing
+    if (romPath.empty())
+        romPath = findFile(kDefaultRom);
+    if (romPath.empty())
+        romPath = kDefaultRom; // let init report it missing
 
     apple2e::Apple2e emulator;
-    std::string diskRom = findFile(kDiskRom);
+    std::string      diskRom = findFile(kDiskRom);
     if (diskRom.empty()) {
         std::cerr << kDiskRom << " not found. Looked in these folders and their " << kRomsDir << "/:\n";
-        for (const auto& dir : searchDirs()) std::cerr << "  " << dir.string() << "\n";
+        for (const auto &dir : searchDirs())
+            std::cerr << "  " << dir.string() << "\n";
     }
     if (!emulator.init(romPath, diskRom, headlessFrames >= 0)) {
         std::cerr << "Failed to initialize emulator." << std::endl;
         return 1;
     }
-    if (green) emulator.setMonochrome(true);  // otherwise the saved preference applies
-    if (std::string dir = findFile(kDriveImagesDir); !dir.empty()) emulator.loadDriveImages(dir);
-    if (std::string dir = findFile(kMonitorImageDir); !dir.empty()) emulator.loadMonitorImage(dir);
-    if (crt) emulator.setCrt(true);
-    if (noPanel) emulator.setPanelHidden(true);
-    if (std::string videoRom = findFile(kVideoRom); !videoRom.empty()) emulator.loadCharacterRom(videoRom);
+    if (green)
+        emulator.setMonochrome(true); // otherwise the saved preference applies
+    if (std::string dir = findFile(kDriveImagesDir); !dir.empty())
+        emulator.loadDriveImages(dir);
+    if (std::string dir = findFile(kMonitorImageDir); !dir.empty())
+        emulator.loadMonitorImage(dir);
+    if (crt)
+        emulator.setCrt(true);
+    if (noPanel)
+        emulator.setPanelHidden(true);
+    if (std::string videoRom = findFile(kVideoRom); !videoRom.empty())
+        emulator.loadCharacterRom(videoRom);
     for (int drive = 0; drive < 2; drive++) {
-        if (diskPaths[drive].empty()) continue;
+        if (diskPaths[drive].empty())
+            continue;
         std::string error = emulator.insertDisk(drive, diskPaths[drive]);
-        if (!error.empty()) std::cerr << error << std::endl;
+        if (!error.empty())
+            std::cerr << error << std::endl;
     }
     if (!loadStatePath.empty()) {
         std::string error = emulator.loadState(loadStatePath);
@@ -188,8 +204,8 @@ int main(int argc, char* argv[]) {
         } else {
             // A path ending in .raw collects the frames in one file of raw
             // BGRA pixels (it can be a FIFO read by ffmpeg) instead of BMPs
-            bool raw = recordDir.size() > 4 && recordDir.compare(recordDir.size() - 4, 4, ".raw") == 0;
-            FILE* out = raw ? std::fopen(recordDir.c_str(), "wb") : nullptr;
+            bool  raw = recordDir.size() > 4 && recordDir.compare(recordDir.size() - 4, 4, ".raw") == 0;
+            FILE *out = raw ? std::fopen(recordDir.c_str(), "wb") : nullptr;
             if (raw && !out) {
                 std::cerr << "Cannot write " << recordDir << std::endl;
                 return 1;
@@ -198,13 +214,14 @@ int main(int argc, char* argv[]) {
                 emulator.runFrames(2);
                 bool ok;
                 if (raw) {
-                    SDL_Surface* surface = emulator.renderScreenshot(recordScale);
-                    ok = surface != nullptr;
+                    SDL_Surface *surface = emulator.renderScreenshot(recordScale);
+                    ok                   = surface != nullptr;
                     for (int y = 0; ok && y < surface->h; y++) {
-                        auto* row = static_cast<const uint8_t*>(surface->pixels) + y * surface->pitch;
-                        ok = std::fwrite(row, 4, surface->w, out) == static_cast<size_t>(surface->w);
+                        auto *row = static_cast<const uint8_t *>(surface->pixels) + y * surface->pitch;
+                        ok        = std::fwrite(row, 4, surface->w, out) == static_cast<size_t>(surface->w);
                     }
-                    if (surface) SDL_FreeSurface(surface);
+                    if (surface)
+                        SDL_FreeSurface(surface);
                 } else {
                     char name[32];
                     std::snprintf(name, sizeof(name), "frame%05d.bmp", frame / 2);
@@ -215,7 +232,8 @@ int main(int argc, char* argv[]) {
                     return 1;
                 }
             }
-            if (out) std::fclose(out);
+            if (out)
+                std::fclose(out);
         }
         std::cout << emulator.screenText();
         if (!saveStatePath.empty()) {
@@ -231,8 +249,10 @@ int main(int argc, char* argv[]) {
         }
     } else {
         std::string soundsDir = findFile(kSoundsDir);
-        if (soundsDir.empty()) soundsDir = findFile(kBundledSoundsDir);
-        if (!soundsDir.empty()) emulator.loadDriveSounds(soundsDir);
+        if (soundsDir.empty())
+            soundsDir = findFile(kBundledSoundsDir);
+        if (!soundsDir.empty())
+            emulator.loadDriveSounds(soundsDir);
         emulator.run();
     }
     return 0;

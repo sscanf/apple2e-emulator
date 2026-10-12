@@ -15,17 +15,29 @@ namespace {
 
 // Lo-res palette (ARGB), also the source of the hi-res artifact colours
 constexpr uint32_t kPalette[16] = {
-    0xFF000000, 0xFF901740, 0xFF402CA5, 0xFFD043E5,
-    0xFF006940, 0xFF808080, 0xFF2F95E5, 0xFFBFABFF,
-    0xFF405400, 0xFFD06A1A, 0xFF808080, 0xFFFF96BF,
-    0xFF2FBC1A, 0xFFBFD35A, 0xFF6FE8BF, 0xFFFFFFFF,
+    0xFF000000,
+    0xFF901740,
+    0xFF402CA5,
+    0xFFD043E5,
+    0xFF006940,
+    0xFF808080,
+    0xFF2F95E5,
+    0xFFBFABFF,
+    0xFF405400,
+    0xFFD06A1A,
+    0xFF808080,
+    0xFFFF96BF,
+    0xFF2FBC1A,
+    0xFFBFD35A,
+    0xFF6FE8BF,
+    0xFFFFFFFF,
 };
-constexpr uint32_t kBlack = kPalette[0];
-constexpr uint32_t kWhite = kPalette[15];
-constexpr uint32_t kViolet = kPalette[3];
-constexpr uint32_t kGreen = kPalette[12];
-constexpr uint32_t kBlue = kPalette[6];
-constexpr uint32_t kOrange = kPalette[9];
+constexpr uint32_t kBlack         = kPalette[0];
+constexpr uint32_t kWhite         = kPalette[15];
+constexpr uint32_t kViolet        = kPalette[3];
+constexpr uint32_t kGreen         = kPalette[12];
+constexpr uint32_t kBlue          = kPalette[6];
+constexpr uint32_t kOrange        = kPalette[9];
 constexpr uint32_t kGreenPhosphor = 0xFF33FF33;
 
 // Text rows (and lo-res rows) are interleaved in groups of eight
@@ -38,10 +50,10 @@ uint16_t hiresLineOffset(int y) {
 }
 
 struct DecodedChar {
-    uint8_t ascii;   // $20-$7F
-    bool inverse;
-    bool flashing;
-    bool mouseText;
+    uint8_t ascii; // $20-$7F
+    bool    inverse;
+    bool    flashing;
+    bool    mouseText;
 };
 
 // Map a screen byte to a glyph using the IIe character set layout:
@@ -53,26 +65,34 @@ DecodedChar decodeChar(uint8_t ch, bool altcharset) {
         return c < 0x20 ? c + 0x40 : c;
     };
 
-    if (ch >= 0xE0) return {static_cast<uint8_t>(ch & 0x7F), false, false, false};
-    if (ch >= 0x80) return {upper(ch), false, false, false};
-    if (ch < 0x40) return {upper(ch), true, false, false};
-    if (!altcharset) return {upper(ch), false, true, false};
-    if (ch < 0x60) return {' ', false, false, true};
+    if (ch >= 0xE0)
+        return {static_cast<uint8_t>(ch & 0x7F), false, false, false};
+    if (ch >= 0x80)
+        return {upper(ch), false, false, false};
+    if (ch < 0x40)
+        return {upper(ch), true, false, false};
+    if (!altcharset)
+        return {upper(ch), false, true, false};
+    if (ch < 0x60)
+        return {' ', false, false, true};
     return {ch, true, false, false};
 }
 
 } // namespace
 
-VideoController::VideoController(const Memory& memory, const SoftSwitches& switches)
-    : m_memory(memory), m_sw(switches) {}
+VideoController::VideoController(const Memory &memory, const SoftSwitches &switches)
+    : m_memory(memory)
+    , m_sw(switches) {}
 
 VideoController::~VideoController() {
-    if (m_texture) SDL_DestroyTexture(m_texture);
+    if (m_texture)
+        SDL_DestroyTexture(m_texture);
 }
 
-bool VideoController::loadCharacterRom(const std::string& path) {
+bool VideoController::loadCharacterRom(const std::string &path) {
     std::ifstream file(path, std::ios::binary);
-    if (!file) return false;
+    if (!file)
+        return false;
     std::vector<uint8_t> data((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
     if (data.size() != 0x1000 && data.size() != 0x2000) {
         std::cerr << "Character ROM " << path << " must be 4 or 8 KB" << std::endl;
@@ -87,7 +107,8 @@ bool VideoController::loadCharacterRom(const std::string& path) {
             uint8_t bits = ~data[base + (0x80 | ascii) * 8 + row] & 0x7F;
             uint8_t dots = 0;
             for (int d = 0; d < 7; d++) {
-                if (bits & (1 << d)) dots |= 0x40 >> d;
+                if (bits & (1 << d))
+                    dots |= 0x40 >> d;
             }
             m_romGlyphs[ascii - 0x20][row] = dots;
         }
@@ -97,18 +118,18 @@ bool VideoController::loadCharacterRom(const std::string& path) {
     return true;
 }
 
-bool VideoController::init(SDL_Renderer* renderer) {
-    m_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
-                                  SDL_TEXTUREACCESS_STREAMING, kWidth, kHeight);
+bool VideoController::init(SDL_Renderer *renderer) {
+    m_texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, kWidth, kHeight);
     return m_texture != nullptr;
 }
 
 void VideoController::renderFrame() {
     // Flashing characters alternate roughly twice per second
-    if (++m_frameCount % 16 == 0) m_flashInverse = !m_flashInverse;
+    if (++m_frameCount % 16 == 0)
+        m_flashInverse = !m_flashInverse;
 
-    bool page2 = m_sw.page2 && !m_sw.store80;
-    uint16_t textBase = page2 ? 0x0800 : 0x0400;
+    bool     page2     = m_sw.page2 && !m_sw.store80;
+    uint16_t textBase  = page2 ? 0x0800 : 0x0400;
     uint16_t hiresBase = page2 ? 0x4000 : 0x2000;
 
     for (int row = 0; row < 24; row++) {
@@ -133,19 +154,19 @@ void VideoController::renderFrame() {
     }
 }
 
-void VideoController::draw(SDL_Renderer* renderer, const SDL_Rect& dst) {
+void VideoController::draw(SDL_Renderer *renderer, const SDL_Rect &dst) {
     SDL_RenderCopy(renderer, frameTexture(), nullptr, &dst);
 }
 
-SDL_Texture* VideoController::frameTexture() {
+SDL_Texture *VideoController::frameTexture() {
     SDL_UpdateTexture(m_texture, nullptr, m_framebuffer.data(), kWidth * sizeof(uint32_t));
     return m_texture;
 }
 
-SDL_Texture* VideoController::createFrameTexture(SDL_Renderer* renderer) const {
-    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
-                                             SDL_TEXTUREACCESS_STATIC, kWidth, kHeight);
-    if (texture) SDL_UpdateTexture(texture, nullptr, m_framebuffer.data(), kWidth * sizeof(uint32_t));
+SDL_Texture *VideoController::createFrameTexture(SDL_Renderer *renderer) const {
+    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STATIC, kWidth, kHeight);
+    if (texture)
+        SDL_UpdateTexture(texture, nullptr, m_framebuffer.data(), kWidth * sizeof(uint32_t));
     return texture;
 }
 
@@ -154,29 +175,31 @@ uint32_t VideoController::foreground() const {
 }
 
 void VideoController::drawGlyph(int x, int y, int dotWidth, uint8_t ch) {
-    DecodedChar dc = decodeChar(ch, m_sw.altcharset);
-    bool inverse = dc.inverse || (dc.flashing && m_flashInverse);
-    uint32_t fg = foreground();
+    DecodedChar dc      = decodeChar(ch, m_sw.altcharset);
+    bool        inverse = dc.inverse || (dc.flashing && m_flashInverse);
+    uint32_t    fg      = foreground();
 
     for (int row = 0; row < 8; row++) {
         uint8_t dots = 0;
         if (!dc.mouseText) {
             dots = m_hasCharRom ? m_romGlyphs[dc.ascii - 0x20][row] : glyphRow(dc.ascii, row) << 1;
         }
-        if (inverse) dots ^= 0x7F;
+        if (inverse)
+            dots ^= 0x7F;
 
-        uint32_t* out = line(y + row) + x;
+        uint32_t *out = line(y + row) + x;
         for (int d = 0; d < 7; d++) {
             uint32_t color = (dots & (0x40 >> d)) ? fg : kBlack;
-            for (int k = 0; k < dotWidth; k++) *out++ = color;
+            for (int k = 0; k < dotWidth; k++)
+                *out++ = color;
         }
     }
 }
 
 void VideoController::drawTextRow(int row, uint16_t base) {
-    uint16_t addr = base + textRowOffset(row);
-    const uint8_t* main = m_memory.mainRam();
-    const uint8_t* aux = m_memory.auxRam();
+    uint16_t       addr = base + textRowOffset(row);
+    const uint8_t *main = m_memory.mainRam();
+    const uint8_t *aux  = m_memory.auxRam();
 
     for (int col = 0; col < 40; col++) {
         if (m_sw.col80) {
@@ -190,21 +213,21 @@ void VideoController::drawTextRow(int row, uint16_t base) {
 }
 
 void VideoController::drawLoresRow(int row, uint16_t base) {
-    uint16_t addr = base + textRowOffset(row);
-    const uint8_t* main = m_memory.mainRam();
+    uint16_t       addr = base + textRowOffset(row);
+    const uint8_t *main = m_memory.mainRam();
 
     uint32_t fg = foreground();
     for (int col = 0; col < 40; col++) {
         uint8_t byte = main[addr + col];
         for (int y = 0; y < 8; y++) {
             // Low nibble is the upper block, high nibble the lower one
-            uint8_t nibble = y < 4 ? (byte & 0x0F) : (byte >> 4);
-            uint32_t* out = line(row * 8 + y) + col * 14;
+            uint8_t   nibble = y < 4 ? (byte & 0x0F) : (byte >> 4);
+            uint32_t *out    = line(row * 8 + y) + col * 14;
             for (int k = 0; k < 14; k++) {
                 if (m_monochrome) {
                     // The colour's 4-bit pattern is shifted out repeatedly
                     // at four times the colour-burst rate
-                    int x = col * 14 + k;
+                    int x  = col * 14 + k;
                     *out++ = (nibble >> (x & 3)) & 1 ? fg : kBlack;
                 } else {
                     *out++ = kPalette[nibble];
@@ -215,8 +238,8 @@ void VideoController::drawLoresRow(int row, uint16_t base) {
 }
 
 void VideoController::drawHiresLine(int y, uint16_t base) {
-    const uint8_t* main = m_memory.mainRam();
-    uint16_t addr = base + hiresLineOffset(y);
+    const uint8_t *main = m_memory.mainRam();
+    uint16_t       addr = base + hiresLineOffset(y);
 
     // 40 bytes x 7 dots, LSB first; bit 7 selects the colour group
     std::array<bool, 280> on{};
@@ -224,41 +247,44 @@ void VideoController::drawHiresLine(int y, uint16_t base) {
     for (int col = 0; col < 40; col++) {
         uint8_t byte = main[addr + col];
         for (int bit = 0; bit < 7; bit++) {
-            on[col * 7 + bit] = byte & (1 << bit);
+            on[col * 7 + bit]     = byte & (1 << bit);
             group2[col * 7 + bit] = byte & 0x80;
         }
     }
 
     if (m_monochrome) {
         // Each dot is two 560-resolution pixels; bit 7 delays the byte's dots by half a dot
-        uint32_t fg = foreground();
-        uint32_t* out = line(y);
+        uint32_t  fg  = foreground();
+        uint32_t *out = line(y);
         std::fill(out, out + kWidth, kBlack);
         for (int x = 0; x < 280; x++) {
-            if (!on[x]) continue;
-            int px = x * 2 + (group2[x] ? 1 : 0);
+            if (!on[x])
+                continue;
+            int px  = x * 2 + (group2[x] ? 1 : 0);
             out[px] = fg;
-            if (px + 1 < kWidth) out[px + 1] = fg;
+            if (px + 1 < kWidth)
+                out[px + 1] = fg;
         }
         return;
     }
 
     auto artifact = [&](int x) {
         bool even = (x & 1) == 0;
-        if (group2[x]) return even ? kBlue : kOrange;
+        if (group2[x])
+            return even ? kBlue : kOrange;
         return even ? kViolet : kGreen;
     };
 
-    uint32_t* out = line(y);
+    uint32_t *out = line(y);
     for (int x = 0; x < 280; x++) {
-        bool left = x > 0 && on[x - 1];
+        bool left  = x > 0 && on[x - 1];
         bool right = x < 279 && on[x + 1];
 
         uint32_t color;
         if (on[x]) {
             color = (left || right) ? kWhite : artifact(x);
         } else if (left && right) {
-            color = artifact(x - 1);  // a gap between two lit dots takes their colour
+            color = artifact(x - 1); // a gap between two lit dots takes their colour
         } else {
             color = kBlack;
         }
@@ -271,18 +297,19 @@ void VideoController::drawHiresLine(int y, uint16_t base) {
 // positions. Aux colours are stored rotated one bit to the right relative to
 // main ones, because the aux half of the pair is shifted out first.
 void VideoController::drawDoubleLoresRow(int row, uint16_t base) {
-    uint16_t addr = base + textRowOffset(row);
-    const uint8_t* main = m_memory.mainRam();
-    const uint8_t* aux = m_memory.auxRam();
-    uint32_t fg = foreground();
+    uint16_t       addr = base + textRowOffset(row);
+    const uint8_t *main = m_memory.mainRam();
+    const uint8_t *aux  = m_memory.auxRam();
+    uint32_t       fg   = foreground();
 
     for (int block = 0; block < 80; block++) {
-        bool fromAux = (block & 1) == 0;
-        uint8_t byte = fromAux ? aux[addr + block / 2] : main[addr + block / 2];
+        bool    fromAux = (block & 1) == 0;
+        uint8_t byte    = fromAux ? aux[addr + block / 2] : main[addr + block / 2];
         for (int y = 0; y < 8; y++) {
             uint8_t nibble = y < 4 ? (byte & 0x0F) : (byte >> 4);
-            if (fromAux) nibble = ((nibble << 1) | (nibble >> 3)) & 0x0F;
-            uint32_t* out = line(row * 8 + y) + block * 7;
+            if (fromAux)
+                nibble = ((nibble << 1) | (nibble >> 3)) & 0x0F;
+            uint32_t *out = line(row * 8 + y) + block * 7;
             for (int k = 0; k < 7; k++) {
                 int x = block * 7 + k;
                 if (m_monochrome) {
@@ -299,22 +326,23 @@ void VideoController::drawDoubleLoresRow(int row, uint16_t base) {
 // those of the main byte at the same address (bit 7 is unused). In colour each
 // group of four dots is one of the 16 lo-res colours.
 void VideoController::drawDoubleHiresLine(int y, uint16_t base) {
-    uint16_t addr = base + hiresLineOffset(y);
-    const uint8_t* main = m_memory.mainRam();
-    const uint8_t* aux = m_memory.auxRam();
+    uint16_t       addr = base + hiresLineOffset(y);
+    const uint8_t *main = m_memory.mainRam();
+    const uint8_t *aux  = m_memory.auxRam();
 
     std::array<bool, kWidth> on{};
     for (int col = 0; col < 40; col++) {
         for (int bit = 0; bit < 7; bit++) {
-            on[col * 14 + bit] = aux[addr + col] & (1 << bit);
+            on[col * 14 + bit]     = aux[addr + col] & (1 << bit);
             on[col * 14 + 7 + bit] = main[addr + col] & (1 << bit);
         }
     }
 
-    uint32_t* out = line(y);
+    uint32_t *out = line(y);
     if (m_monochrome) {
         uint32_t fg = foreground();
-        for (int x = 0; x < kWidth; x++) out[x] = on[x] ? fg : kBlack;
+        for (int x = 0; x < kWidth; x++)
+            out[x] = on[x] ? fg : kBlack;
         return;
     }
     for (int x = 0; x < kWidth; x += 4) {
@@ -324,17 +352,18 @@ void VideoController::drawDoubleHiresLine(int y, uint16_t base) {
 }
 
 std::string VideoController::textDump() const {
-    bool page2 = m_sw.page2 && !m_sw.store80;
-    uint16_t base = page2 ? 0x0800 : 0x0400;
-    const uint8_t* main = m_memory.mainRam();
-    const uint8_t* aux = m_memory.auxRam();
+    bool           page2 = m_sw.page2 && !m_sw.store80;
+    uint16_t       base  = page2 ? 0x0800 : 0x0400;
+    const uint8_t *main  = m_memory.mainRam();
+    const uint8_t *aux   = m_memory.auxRam();
 
     std::string out;
     for (int row = 0; row < 24; row++) {
-        uint16_t addr = base + textRowOffset(row);
+        uint16_t    addr = base + textRowOffset(row);
         std::string text;
         for (int col = 0; col < 40; col++) {
-            if (m_sw.col80) text += static_cast<char>(decodeChar(aux[addr + col], m_sw.altcharset).ascii);
+            if (m_sw.col80)
+                text += static_cast<char>(decodeChar(aux[addr + col], m_sw.altcharset).ascii);
             text += static_cast<char>(decodeChar(main[addr + col], m_sw.altcharset).ascii);
         }
         text.erase(text.find_last_not_of(' ') + 1);
@@ -343,11 +372,11 @@ std::string VideoController::textDump() const {
     return out;
 }
 
-void VideoController::copyToSurface(SDL_Surface* surface, int x, int y) const {
-    if (x < 0 || y < 0 || x + kWidth > surface->w) return;
+void VideoController::copyToSurface(SDL_Surface *surface, int x, int y) const {
+    if (x < 0 || y < 0 || x + kWidth > surface->w)
+        return;
     for (int row = 0; row < kHeight * 2 && y + row < surface->h; row++) {
-        auto* dst = reinterpret_cast<uint8_t*>(surface->pixels) + (y + row) * surface->pitch +
-                    x * sizeof(uint32_t);
+        auto *dst = reinterpret_cast<uint8_t *>(surface->pixels) + (y + row) * surface->pitch + x * sizeof(uint32_t);
         std::memcpy(dst, &m_framebuffer[(row / 2) * kWidth], kWidth * sizeof(uint32_t));
     }
 }

@@ -26,36 +26,36 @@ public:
     bool visible() const { return m_visible; }
 
     // `width` is the window's, in renderer units
-    void draw(SDL_Renderer* renderer, int width) const;
+    void draw(SDL_Renderer *renderer, int width) const;
 
     // Mouse and key events of the window; true if the menu used the event
-    bool handleEvent(const SDL_Event& event);
+    bool handleEvent(const SDL_Event &event);
 
 private:
     struct Item {
-        std::string label;  // empty: a separator line
-        Command command = Command::Reset;
+        std::string label; // empty: a separator line
+        Command     command = Command::Reset;
         std::string shortcut;
-        bool checkable = false;
+        bool        checkable = false;
     };
     struct Menu {
-        std::string title;
+        std::string       title;
         std::vector<Item> items;
-        int x = 0;  // of its title in the bar
+        int               x = 0; // of its title in the bar
     };
 
     SDL_Rect titleRect(int menu) const;
     SDL_Rect dropRect(int menu) const;
     SDL_Rect itemRect(int menu, int item) const;
-    int menuAt(int x, int y) const;
-    int itemAt(int x, int y) const;
+    int      menuAt(int x, int y) const;
+    int      itemAt(int x, int y) const;
 
     std::function<void(Command)> m_run;
     std::function<bool(Command)> m_isOn;
-    std::vector<Menu> m_menus;
-    bool m_visible = true;
-    int m_open = -1;   // menu whose list is showing
-    int m_hover = -1;  // item under the pointer in that list
+    std::vector<Menu>            m_menus;
+    bool                         m_visible = true;
+    int                          m_open    = -1; // menu whose list is showing
+    int                          m_hover   = -1; // item under the pointer in that list
 };
 
 } // namespace apple2e

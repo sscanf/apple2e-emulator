@@ -12,11 +12,14 @@ namespace apple2e {
 // from WAV files; any that are missing are simply not played.
 class DriveSounds {
 public:
-    enum class Event { Step, Bump };
+    enum class Event {
+        Step,
+        Bump
+    };
 
     // Load the samples from `directory`, resampled to `sampleRate`.
     // Returns false if none could be loaded.
-    bool load(const std::string& directory, int sampleRate);
+    bool load(const std::string &directory, int sampleRate);
 
     bool enabled() const { return m_enabled; }
     void setEnabled(bool on) { m_enabled = on; }
@@ -32,46 +35,46 @@ public:
     // grind); applied while mixing, so playing sounds follow changes at once
     float motorVolume() const { return m_motorVolume; }
     float headVolume() const { return m_headVolume; }
-    void setMotorVolume(float v) { m_motorVolume = v < 0 ? 0 : (v > 1 ? 1 : v); }
-    void setHeadVolume(float v) { m_headVolume = v < 0 ? 0 : (v > 1 ? 1 : v); }
+    void  setMotorVolume(float v) { m_motorVolume = v < 0 ? 0 : (v > 1 ? 1 : v); }
+    void  setHeadVolume(float v) { m_headVolume = v < 0 ? 0 : (v > 1 ? 1 : v); }
 
     // Add drive sounds to `n` samples whose first sample is at CPU cycle `startCycle`
-    void mix(float* buffer, size_t n, double startCycle, double cyclesPerSample);
+    void mix(float *buffer, size_t n, double startCycle, double cyclesPerSample);
 
 private:
     using Sample = std::vector<float>;
 
     struct Voice {
-        const Sample* sample;
-        size_t position;
-        int delay;  // samples to wait before starting
-        bool head;  // follows the head volume
+        const Sample *sample;
+        size_t        position;
+        int           delay; // samples to wait before starting
+        bool          head;  // follows the head volume
     };
 
     struct PendingEvent {
-        Event event;
+        Event    event;
         uint64_t cycle;
     };
 
-    void start(const Sample& sample, int delay, bool head);
+    void start(const Sample &sample, int delay, bool head);
     bool grindPlaying() const;
 
-    bool m_enabled = true;
+    bool  m_enabled     = true;
     float m_motorVolume = 1.0f;
-    float m_headVolume = 1.0f;
-    bool m_motorOn = false;
+    float m_headVolume  = 1.0f;
+    bool  m_motorOn     = false;
 
-    Sample m_spin;  // seamless loop
+    Sample              m_spin; // seamless loop
     std::vector<Sample> m_steps;
     std::vector<Sample> m_grinds;
-    Sample m_eject;
-    size_t m_nextStep = 0;
-    size_t m_nextGrind = 0;
+    Sample              m_eject;
+    size_t              m_nextStep  = 0;
+    size_t              m_nextGrind = 0;
 
     size_t m_spinPosition = 0;
-    float m_spinLevel = 0;  // fades the motor loop in and out
+    float  m_spinLevel    = 0; // fades the motor loop in and out
 
-    std::vector<Voice> m_voices;
+    std::vector<Voice>        m_voices;
     std::vector<PendingEvent> m_events;
 };
 

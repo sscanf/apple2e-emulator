@@ -13,19 +13,19 @@ namespace apple2e {
 class CrtDisplay {
 public:
     // Monitor layout in renderer (logical) units, relative to its top-left
-    static constexpr int kWidth = 690;   // bezel artwork
-    static constexpr int kHeight = 512;
-    static constexpr SDL_Rect kGlass = {41, 40, 608, 432};  // tube opening
-    static constexpr int kMargin = 24;                      // glass around the picture
+    static constexpr int      kWidth  = 690; // bezel artwork
+    static constexpr int      kHeight = 512;
+    static constexpr SDL_Rect kGlass  = {41, 40, 608, 432}; // tube opening
+    static constexpr int      kMargin = 24;                 // glass around the picture
     // Where the 560x384 Apple picture sits (before the curvature)
     static constexpr SDL_Rect kPicture = {kGlass.x + kMargin, kGlass.y + kMargin, 560, 384};
 
     // `bezel` is the monitor artwork (kWidth x kHeight, any resolution, with a
     // transparent tube opening); null draws a plain case
-    CrtDisplay(SDL_Renderer* renderer, SDL_Surface* bezel);
+    CrtDisplay(SDL_Renderer *renderer, SDL_Surface *bezel);
     ~CrtDisplay();
-    CrtDisplay(const CrtDisplay&) = delete;
-    CrtDisplay& operator=(const CrtDisplay&) = delete;
+    CrtDisplay(const CrtDisplay &)            = delete;
+    CrtDisplay &operator=(const CrtDisplay &) = delete;
 
     // False if the renderer lacks what the effect needs (render targets)
     bool ok() const { return m_glass != nullptr; }
@@ -35,24 +35,24 @@ public:
 
     // Draw the monitor with its top-left at `origin`. `frame` is the Apple
     // display texture (560x192); `green` selects the green phosphor glass.
-    void draw(SDL_Texture* frame, SDL_Point origin, bool green);
+    void draw(SDL_Texture *frame, SDL_Point origin, bool green);
 
 private:
-    void buildMesh();
-    SDL_Texture* makeOverlay(int w, int h, bool reflection);
+    void         buildMesh();
+    SDL_Texture *makeOverlay(int w, int h, bool reflection);
 
-    SDL_Renderer* m_renderer;
-    SDL_Texture* m_bezel = nullptr;
-    SDL_Texture* m_glass = nullptr;      // picture + glow, 2x resolution
-    SDL_Texture* m_glowSmall = nullptr;  // downsampled copies for the bloom
-    SDL_Texture* m_glowTiny = nullptr;
-    SDL_Texture* m_scanlines = nullptr;
-    SDL_Texture* m_vignette = nullptr;
-    SDL_Texture* m_reflection = nullptr;
+    SDL_Renderer *m_renderer;
+    SDL_Texture  *m_bezel      = nullptr;
+    SDL_Texture  *m_glass      = nullptr; // picture + glow, 2x resolution
+    SDL_Texture  *m_glowSmall  = nullptr; // downsampled copies for the bloom
+    SDL_Texture  *m_glowTiny   = nullptr;
+    SDL_Texture  *m_scanlines  = nullptr;
+    SDL_Texture  *m_vignette   = nullptr;
+    SDL_Texture  *m_reflection = nullptr;
 
-    float m_curvature = 0.03f;
-    std::vector<SDL_Vertex> m_vertices;  // curved glass, at origin (0, 0)
-    std::vector<int> m_indices;
+    float                   m_curvature = 0.03f;
+    std::vector<SDL_Vertex> m_vertices; // curved glass, at origin (0, 0)
+    std::vector<int>        m_indices;
 };
 
 } // namespace apple2e

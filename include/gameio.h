@@ -19,7 +19,7 @@ public:
     ~GameIO();
 
     // `screen` is the Apple display area in renderer (logical) coordinates
-    void handleEvent(const SDL_Event& event, const SDL_Rect& screen);
+    void handleEvent(const SDL_Event &event, const SDL_Rect &screen);
 
     // $C070: start the paddle timers
     void trigger(uint64_t cycle) { m_triggerCycle = cycle; }
@@ -29,17 +29,17 @@ public:
     bool button(int n) const { return m_mouseButtons[n] || m_padButtons[n]; }
 
     // Save states (see state.h)
-    void saveState(StateWriter& w) const;
-    void loadState(StateReader& r);
+    void saveState(StateWriter &w) const;
+    void loadState(StateReader &r);
 
 private:
     void openController(int deviceIndex);
 
     std::array<uint8_t, 4> m_paddles = {128, 128, 128, 128};
-    std::array<bool, 3> m_mouseButtons{};
-    std::array<bool, 3> m_padButtons{};
-    uint64_t m_triggerCycle = 0;
-    SDL_GameController* m_controller = nullptr;
+    std::array<bool, 3>    m_mouseButtons{};
+    std::array<bool, 3>    m_padButtons{};
+    uint64_t               m_triggerCycle = 0;
+    SDL_GameController    *m_controller   = nullptr;
 };
 
 } // namespace apple2e
