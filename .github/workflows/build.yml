@@ -126,11 +126,21 @@ jobs:
           codesign --force --deep -s - "$app"
           (cd / && "$OLDPWD/$app/Contents/MacOS/apple2e_emulator" --headless 60) | tee smoke.log
           grep -q "Disk II ROM loaded" smoke.log
-          ditto -c -k --keepParent "$app" "apple2e-emulator-$version-macos-universal.zip"
+          # Disk image with the app and a shortcut to drag it onto
+          mkdir dmg
+          cp -R "$app" dmg/
+          ln -s /Applications dmg/Applications
+          dmg="apple2e-emulator-$version-macos-universal.dmg"
+          hdiutil create -volname "Apple IIe" -srcfolder dmg -ov -format UDZO "$dmg"
+          # The app must still find its files from inside the image
+          hdiutil attach "$dmg" -nobrowse -readonly -mountpoint mnt
+          (cd / && "$OLDPWD/mnt/$app/Contents/MacOS/apple2e_emulator" --headless 60) | tee smoke-dmg.log
+          hdiutil detach mnt
+          grep -q "Disk II ROM loaded from .*/mnt/" smoke-dmg.log
       - uses: actions/upload-artifact@v4
         with:
           name: macos
-          path: '*.zip'
+          path: '*.dmg'
 
   windows:
     timeout-minutes: 30
@@ -185,4 +195,4 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --generate-notes *.tar.gz *.zip
+        run: gh release create "${{ github.ref_name }}" --repo "${{ github.repository }}" --generate-notes *.tar.gz *.zip *.dmg
