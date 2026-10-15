@@ -189,6 +189,9 @@ int main(int argc, char *argv[]) {
         if (!error.empty())
             std::cerr << error << std::endl;
     }
+    // Disks named here, or the ones in a save state, are the whole setup
+    if (headlessFrames < 0 && diskPaths[0].empty() && diskPaths[1].empty() && loadStatePath.empty())
+        emulator.insertLastDisks();
     if (!loadStatePath.empty()) {
         std::string error = emulator.loadState(loadStatePath);
         if (!error.empty()) {

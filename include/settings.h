@@ -17,6 +17,7 @@ struct Settings {
     int         headVolume   = 100;
     std::string diskDirectory;                                      // where the disk file dialog opens
     std::string stateDirectory;                                     // where the save state dialogs open
+    std::string disks[2];                                           // disk images left in the drives
     int         windowX = 0, windowY = 0, windowW = 0, windowH = 0; // size 0: default
 
     // Per-user folder for settings and quick save states (ends with a

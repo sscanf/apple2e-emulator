@@ -59,6 +59,10 @@ void Settings::load(const std::string &path) {
             diskDirectory = value;
         else if (key == "state_directory")
             stateDirectory = value;
+        else if (key == "disk1")
+            disks[0] = value;
+        else if (key == "disk2")
+            disks[1] = value;
         else if (key == "window_x")
             toInt(windowX);
         else if (key == "window_y")
@@ -82,6 +86,8 @@ bool Settings::save(const std::string &path) const {
          << "head_volume=" << headVolume << '\n'
          << "disk_directory=" << diskDirectory << '\n'
          << "state_directory=" << stateDirectory << '\n'
+         << "disk1=" << disks[0] << '\n'
+         << "disk2=" << disks[1] << '\n'
          << "window_x=" << windowX << '\n'
          << "window_y=" << windowY << '\n'
          << "window_width=" << windowW << '\n'

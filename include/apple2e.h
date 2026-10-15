@@ -64,6 +64,8 @@ public:
 
     // Insert a disk image into drive 0/1; returns an error message on failure
     std::string insertDisk(int drive, const std::string &path);
+    // Put back the disks that were in the drives when the last session ended
+    void insertLastDisks();
 
     // Interactive loop at real speed until the window is closed
     void run();

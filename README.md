@@ -142,8 +142,10 @@ States are tied to the emulator build that wrote them (format version 1).
 ### Settings
 
 The monitor type (colour/green, CRT), drive sounds on/off and their
-motor/head volumes, the folders the disk and save state dialogs open in, and
-the window size and position are restored from the last session. They are
+motor/head volumes, the folders the disk and save state dialogs open in, the
+window size and position, and the disks left in the drives are restored from
+the last session (the disks only when the command line names no disk or save
+state; a disk image that has been moved or deleted is skipped). They are
 saved on exit to `settings.ini` in the per-user settings folder
 (`~/Library/Application Support/apple2e-emulator/Apple IIe/` on macOS);
 delete it to go back to the defaults. `--green` overrides the saved monitor

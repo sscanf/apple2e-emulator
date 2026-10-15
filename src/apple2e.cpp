@@ -226,6 +226,20 @@ std::string Apple2e::insertDisk(int drive, const std::string &path) {
     return m_disk2.insert(drive, path);
 }
 
+void Apple2e::insertLastDisks() {
+    if (!m_hasDisk2)
+        return;
+    for (int drive = 0; drive < Disk2Controller::kDrives; drive++) {
+        const std::string &path = m_settings.disks[drive];
+        std::error_code    ec;
+        if (path.empty() || !std::filesystem::exists(path, ec))
+            continue; // moved or deleted since: leave the drive empty
+        std::string error = m_disk2.insert(drive, path);
+        if (!error.empty())
+            m_sidePanel->showMessage(error, true);
+    }
+}
+
 SDL_Surface *Apple2e::renderScreenshot(int scale) const {
     SDL_Point    size    = logicalSize();
     SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormat(0, size.x * scale, size.y * scale, 32, SDL_PIXELFORMAT_ARGB8888);
@@ -818,6 +832,13 @@ void Apple2e::saveSettings() {
     m_settings.headVolume     = static_cast<int>(m_driveSounds.headVolume() * 100 + 0.5f);
     m_settings.diskDirectory  = m_sidePanel->lastDirectory();
     m_settings.stateDirectory = m_sidePanel->lastStateDirectory();
+    for (int drive = 0; drive < Disk2Controller::kDrives; drive++) {
+        const DiskImage &disk = m_disk2.disk(drive);
+        std::error_code  ec;
+        // Absolute: the next session may start in another folder
+        std::string path        = disk.loaded() ? std::filesystem::absolute(disk.path(), ec).string() : std::string();
+        m_settings.disks[drive] = ec ? disk.path() : path;
+    }
     SDL_GetWindowPosition(m_window, &m_settings.windowX, &m_settings.windowY);
     SDL_GetWindowSize(m_window, &m_settings.windowW, &m_settings.windowH);
     if (!m_settings.save(m_settingsPath))
