@@ -7,6 +7,7 @@
 #include "platformwindow.h"
 
 #if defined(__APPLE__)
+#include <Carbon/Carbon.h> // keyboard input sources
 #include <SDL_syswm.h>
 #include <objc/message.h>
 #include <objc/runtime.h>
@@ -135,6 +136,57 @@ void clearWindowBackground(SDL_Window *window) {
         setPointer(layer, sel_registerName("setBackgroundColor:"), nullptr);
 #else
     (void)window;
+#endif
+}
+
+#if defined(__APPLE__)
+namespace {
+
+TISInputSourceRef g_inputSource = nullptr;
+
+// "Automatically switch to a document's input source" in Keyboard settings.
+// Without it the input source is the same everywhere and is not ours to set.
+bool inputSourcePerDocument() {
+    CFPropertyListRef properties = CFPreferencesCopyAppValue(CFSTR("AppleGlobalTextInputProperties"), CFSTR("com.apple.HIToolbox"));
+    if (!properties)
+        return false;
+    bool on = false;
+    if (CFGetTypeID(properties) == CFDictionaryGetTypeID()) {
+        CFTypeRef flag = CFDictionaryGetValue(static_cast<CFDictionaryRef>(properties), CFSTR("TextInputGlobalPropertyPerContextInput"));
+        int       n    = 0;
+        if (flag && CFGetTypeID(flag) == CFNumberGetTypeID() && CFNumberGetValue(static_cast<CFNumberRef>(flag), kCFNumberIntType, &n))
+            on = n != 0;
+        else if (flag && CFGetTypeID(flag) == CFBooleanGetTypeID())
+            on = CFBooleanGetValue(static_cast<CFBooleanRef>(flag));
+    }
+    CFRelease(properties);
+    return on;
+}
+
+} // namespace
+#endif
+
+void rememberInputSource() {
+#if defined(__APPLE__)
+    TISInputSourceRef current = TISCopyCurrentKeyboardInputSource();
+    if (!current)
+        return;
+    if (g_inputSource)
+        CFRelease(g_inputSource);
+    g_inputSource = current;
+#endif
+}
+
+void restoreInputSource() {
+#if defined(__APPLE__)
+    if (!g_inputSource)
+        return;
+    TISInputSourceRef current = TISCopyCurrentKeyboardInputSource();
+    bool              same    = current && CFEqual(current, g_inputSource);
+    if (current)
+        CFRelease(current);
+    if (!same && inputSourcePerDocument())
+        TISSelectInputSource(g_inputSource);
 #endif
 }
 

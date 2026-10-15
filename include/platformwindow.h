@@ -24,6 +24,14 @@ bool makeWindowTransparent(SDL_Window *window, SDL_Renderer *renderer);
 // redisplayed; take that away again (cheap enough to do on every frame)
 void clearWindowBackground(SDL_Window *window);
 
+// macOS can keep a keyboard layout (input source) for each document, but SDL
+// starts a new text field every time its window gets the keyboard, so macOS
+// takes the window for a new document and goes back to the default layout.
+// rememberInputSource() notes the one in use; restoreInputSource() selects it
+// again if macOS is set to keep one per document. No-ops elsewhere.
+void rememberInputSource();
+void restoreInputSource();
+
 // Call before SDL_Init. On Linux, prefer X11 (through XWayland on a Wayland
 // desktop): Wayland does not let a program place its windows, which the
 // side panel's window needs. SDL_VIDEODRIVER in the environment still wins.

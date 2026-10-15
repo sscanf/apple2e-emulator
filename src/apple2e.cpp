@@ -47,6 +47,7 @@ constexpr SDL_Rect kScreenRect        = {kBorder, kBorder, kScreenWidth, kScreen
 constexpr int      kPanelX            = kScreenWidth + 2 * kBorder;
 constexpr int      kLogicalWidth      = kPanelX + SidePanel::kWidth;
 constexpr float    kPanelSlideSeconds = 0.25f;
+constexpr int      kInputSourceFrames = 30; // half a second after getting the keyboard
 // Strip on the panel's outer edge to pull it out or push it in with the
 // mouse; it stays in view when the panel is hidden
 constexpr int kHandleWidth      = 12;
@@ -981,6 +982,8 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
             layoutPanelWindow();
         else if (main && event.window.event == SDL_WINDOWEVENT_MOVED)
             placePanelWindow();
+        else if (main && event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED)
+            m_inputSourceFrames = kInputSourceFrames;
         return;
     }
     // The panel's own window: its mouse events are in the panel's coordinates
@@ -1038,6 +1041,8 @@ void Apple2e::handleEvent(const SDL_Event &event, bool &running) {
     if (event.type == SDL_KEYDOWN) {
         SDL_Keycode key = event.key.keysym.sym;
         SDL_Keymod  mod = static_cast<SDL_Keymod>(event.key.keysym.mod);
+        if (m_inputSourceFrames == 0)
+            rememberInputSource(); // the layout being typed with
 
         // Emulator hotkeys; everything else goes to the Apple keyboard
         bool                   cmd = mod & KMOD_GUI, shift = mod & KMOD_SHIFT;
@@ -1112,6 +1117,11 @@ void Apple2e::run() {
         while (SDL_PollEvent(&event))
             handleEvent(event, running);
         m_sidePanel->update();
+        if (m_inputSourceFrames > 0) {
+            // macOS may switch to its default layout a moment after the focus
+            restoreInputSource();
+            m_inputSourceFrames--;
+        }
 
         runFrame();
         updatePanelSlide(static_cast<float>(frameSeconds));

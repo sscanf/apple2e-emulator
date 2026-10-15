@@ -160,6 +160,7 @@ private:
     // one, cut to the part that shows, and the handle has its own window
     bool                     m_panelAbove         = false;
     bool                     m_panelWindowShown   = true;
+    int                      m_inputSourceFrames  = 0;     // frames left to put the keyboard layout back
     bool                     m_panelWindowsParked = false; // hidden with the minimised main window
     SDL_Window              *m_handleWindow       = nullptr;
     SDL_Renderer            *m_handleRenderer     = nullptr;

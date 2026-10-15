@@ -76,7 +76,7 @@ if(APPLE)
     set(CMAKE_OBJCXX_STANDARD 20)
     set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
     target_sources(apple2e_core PRIVATE src/macmenu.mm)
-    target_link_libraries(apple2e_core PUBLIC objc "-framework Cocoa")
+    target_link_libraries(apple2e_core PUBLIC objc "-framework Cocoa" "-framework Carbon")
 endif()
 target_compile_options(apple2e_core PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra>
