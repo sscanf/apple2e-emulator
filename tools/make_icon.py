@@ -2,7 +2,8 @@
 
     uvx --with pillow python tools/make_icon.py
 
-The icon is the Apple Monitor II with a green prompt on its screen.
+The icon is the Apple Monitor II with "][" on its screen, striped in the six
+colours of the 1977 Apple badge (the colours only, not the logo).
 """
 import subprocess
 import tempfile
@@ -27,18 +28,26 @@ gx, gy, gw, gh = (round(v * scale * bezel.width / (690 * scale)) for v in (41, 4
 glass = (left + gx - 4, top + gy - 4, left + gx + gw + 4, top + gy + gh + 4)
 draw.rounded_rectangle(glass, radius=40, fill=(11, 32, 26, 255))
 
-# "]" prompt and a block cursor, in big phosphor dots
-green = (51, 255, 102, 255)
-dot = 26
-px, py = glass[0] + 110, glass[1] + 150
-bracket = ["###", "..#", "..#", "..#", "..#", "..#", "###"]
-for row, line in enumerate(bracket):
+# "][" filled with the badge's stripes, centred on the glass
+stripes = [(97, 187, 70), (253, 184, 39), (245, 130, 31), (224, 58, 62), (150, 61, 151), (0, 157, 220)]
+glyph = ["###.###", "..#.#..", "..#.#..", "..#.#..", "..#.#..", "###.###"]
+cell = 62
+width, height = len(glyph[0]) * cell, len(glyph) * cell
+ox = (glass[0] + glass[2]) // 2 - width // 2
+oy = (glass[1] + glass[3]) // 2 - height // 2
+mask = Image.new("L", (SIZE, SIZE), 0)
+mask_draw = ImageDraw.Draw(mask)
+for row, line in enumerate(glyph):
     for col, ch in enumerate(line):
         if ch == "#":
-            x, y = px + col * dot, py + row * dot
-            draw.rectangle((x, y, x + dot - 5, y + dot - 5), fill=green)
-cx = px + 5 * dot
-draw.rectangle((cx, py, cx + 4 * dot - 5, py + 7 * dot - 5), fill=green)
+            x, y = ox + col * cell, oy + row * cell
+            mask_draw.rectangle((x, y, x + cell - 1, y + cell - 1), fill=255)
+colours = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+colours_draw = ImageDraw.Draw(colours)
+band = height / len(stripes)
+for i, colour in enumerate(stripes):
+    colours_draw.rectangle((ox, round(oy + i * band), ox + width, round(oy + (i + 1) * band) - 1), fill=colour + (255,))
+icon.paste(colours, (0, 0), mask)
 
 icon.alpha_composite(bezel, (left, top))
 
